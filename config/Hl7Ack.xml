@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Hl7Ack>
+  <helper>
+    <class>tdunnick.phinmsx.model.Hl7AckHelper</class>
+  </helper>
+</Hl7Ack>

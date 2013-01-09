@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  
+  Copyright (c) 2012 Thomas Dunnick (https://mywebspace.wisc.edu/tdunnick/web)
+  
+  This file is part of PhinmsX.
+
+  PhinmsX is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  Foobar is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+  <display-name>PhinmsX</display-name>
+  <filter>
+    <filter-name>sitemesh</filter-name>
+    <filter-class>com.opensymphony.sitemesh.webapp.SiteMeshFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>sitemesh</filter-name>
+    <url-pattern>*.html</url-pattern>
+    <url-pattern>*.jsp</url-pattern>
+  </filter-mapping>
+  <servlet>
+    <servlet-name>Receiver</servlet-name>
+    <servlet-class>tdunnick.phinmsx.controller.Receiver</servlet-class>
+    <init-param>
+      <param-name>Config</param-name>
+      <param-value>C:/usr/workspace/PhinmsX/config/Receiver.xml</param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Receiver</servlet-name>
+    <url-pattern>/status.html</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <description></description>
+    <display-name>Monitor</display-name>
+    <servlet-name>Monitor</servlet-name>
+    <servlet-class>tdunnick.phinmsx.controller.Monitor</servlet-class>
+    <init-param>
+      <description>Monitor configuration</description>
+      <param-name>Config</param-name>
+      <param-value>C:/usr/workspace/PhinmsX/config/Monitor.xml</param-value>
+    </init-param>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>/queues.html</url-pattern>
+    <url-pattern>/dashboard.html</url-pattern>
+    <url-pattern>/images/barchart.png</url-pattern>
+    <url-pattern>/images/linechart.png</url-pattern>
+     <url-pattern>/images/piechart.png</url-pattern>
+   </servlet-mapping>
+  <!-- 
+  <servlet>
+    <description></description>
+    <display-name>Dashboard</display-name>
+    <servlet-name>Dashboard</servlet-name>
+    <servlet-class>tdunnick.phinmsx.controller.Dashboard</servlet-class>
+    <init-param>
+      <description>Monitor configuration</description>
+      <param-name>Config</param-name>
+      <param-value>C:/usr/workspace/PhinmsX/config/Dashboard.xml</param-value>
+    </init-param>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Dashboard</servlet-name>
+    <url-pattern>/dashboard.html</url-pattern>
+  </servlet-mapping>
+   -->
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+</web-app>

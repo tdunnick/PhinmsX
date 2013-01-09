@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RcvServlet>
+  <receiverXML>C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/phinms/config/receiver/receiver.xml</receiverXML>
+  <logContext>RcvServlet</logContext>
+  <logDir>C:/usr/workspace/PhinmsX/log/</logDir>
+  <logLevel>detail</logLevel>
+  <logDebug>true</logDebug>
+  <incomingDir>C:/usr/workspace/PhinmsX/data/</incomingDir>
+  <queueName>workerqueue</queueName>
+  <fileExtension>.txt</fileExtension>
+  <tempDirectory>C:/usr/workspace/PhinmsX/temp/</tempDirectory>
+  <status>C:/usr/workspace/PhinmsX/config/status.bin</status>
+</RcvServlet>

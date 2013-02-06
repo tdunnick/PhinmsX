@@ -17,11 +17,12 @@
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import junit.framework.TestCase
+
+import groovy.util.GroovyTestCase;
 import java.io.*;
 import tdunnick.phinmsx.util.XmlContent;
 
-class XmlContentTest extends TestCase
+class XmlContentTest extends GroovyTestCase
 {
   def xml = """<?xml version="1.0" encoding="UTF-8"?>  	
 <EncryptedData Id="ed1" Type="http://www.w3.org/2001/04/xmlenc#Element" xmlns="http://www.w3.org/2001/04/xmlenc#">

@@ -16,11 +16,11 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
-import junit.framework.TestCase
 
+import groovy.util.GroovyTestCase;
 import tdunnick.phinmsx.minihl7.*;
 
-class Hl7CoreTest extends TestCase
+class Hl7MsgTest extends GroovyTestCase
 {
 	Hl7Msg hl7 = null;
 	

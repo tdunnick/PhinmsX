@@ -17,14 +17,14 @@
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import junit.framework.TestCase
+import groovy.util.GroovyTestCase;
 import tdunnick.phinmsx.minihl7.*;
 
 /**
  * @author user
  *
  */
-public class Hl7AckTest extends TestCase{
+public class Hl7AckTest extends GroovyTestCase {
 	String msg = "" +
   "MSH|^~\\&|AHS-SLI|ST ELIZABETH HOSPITAL LAB^^CLIA|vCMR|WEDSS|200907081020||ORU^R01|67d50db3-c111-4247-8099-9807c8a10098|T|2.3.1\n" +
   "PID|1|000000000420894|X311520:999||Kermit^Andrea^T||19781022080001|F||WN^WHITE/NON-HISPANIC^L|2771 Walnut Street^^Unity^WI^54488|||||M^MARRIED^L\n" +

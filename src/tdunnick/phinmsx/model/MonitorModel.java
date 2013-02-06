@@ -23,16 +23,13 @@ package tdunnick.phinmsx.model
 import java.io.*;
 import java.text.*;
 import java.util.*;
-import java.util.logging.*;
+import org.apache.log4j.*;
 import java.sql.*;
 import java.sql.Date;
-
 import javax.servlet.http.*;
 
-import gov.cdc.nedss.common.Defines;
-
 import tdunnick.phinmsx.domain.*;
-import tdunnick.phinmsx.util.XmlContent;
+import tdunnick.phinmsx.util.*;
 
 /**
  * This is the model that prepares data for display in the dashboard and 
@@ -56,7 +53,6 @@ public class MonitorModel
 	private String Version = "Monitor RO 0.10 08/08/2012";
 	private Props props = null;
 	private ArrayList tables = null;
-	private Connection conn = null;			// dB connection
 	private Logger logger = null;
 	
 	private final static long MS = 24*60*60*1000;
@@ -119,7 +115,7 @@ public class MonitorModel
 	 */
 	public void close ()
 	{
-		props.closeConnection (conn);
+		props.closeConnection ();
 	}
 
 	/**
@@ -131,7 +127,7 @@ public class MonitorModel
 	public MonitorData getMonitorData (HttpServletRequest request)
 	{
 		setSession (request);
-		MonitorData mon = new MonitorData (Version, Defines.VERSION);		
+		MonitorData mon = new MonitorData (Version, Phinms.getVersion());		
 		setMonitor (mon, setSession (request));
 		return (mon);
 	}
@@ -187,7 +183,7 @@ public class MonitorModel
 	{
 		DashBoardData dash = DashBoardCache.get(request.getSession());
 		if (dash == null)
-			dash = new DashBoardData(Version, Defines.VERSION);
+			dash = new DashBoardData(Version, Phinms.getVersion());
 		return dash;
 	}
 
@@ -252,7 +248,7 @@ public class MonitorModel
 			long start = ends - interval;
 			addConstraint (buf, dateName + " > ", dfmt.format (new Date(start)));
 			addConstraint (buf, dateName + " <= ", dfmt.format(new Date(ends)));
-			Statement stmt = props.query (conn, "SELECT " + constraintName + "," 
+			Statement stmt = props.query ("SELECT " + constraintName + "," 
 					+ dateName + " FROM " + table	+ buf.toString() 
 					+ " ORDER BY " + dateName + " ASC", 0);
 			if (stmt == null)
@@ -292,7 +288,7 @@ public class MonitorModel
 		  	}
 		  	catch (Exception e)
 		  	{
-		  		logger.severe("result fetch " + e.getMessage());
+		  		logger.error("result fetch " + e.getMessage());
 		  	}
 		  }
   		if (min > n) min = n;
@@ -307,7 +303,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.severe("ERROR: result set - " + e.getMessage());
+			logger.error("ERROR: result set - " + e.getMessage());
 			return false;
 		}
 		return true;
@@ -363,8 +359,8 @@ public class MonitorModel
 			if (top > 0)
 			  addConstraint (buf, "recordId<=", Integer.toString (top));
 			addConstraint (buf, constraintName, mon.getConstraint());
-			logger.finest("constraint: " + buf.toString());
-			Statement stmt = props.query (conn, "SELECT * FROM " + mon.getTable()
+			logger.debug("constraint: " + buf.toString());
+			Statement stmt = props.query ("SELECT * FROM " + mon.getTable()
 					+ buf.toString() + " ORDER BY recordId DESC", 10);
 			if (stmt == null)
 				return false;
@@ -376,7 +372,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.severe("ERROR: result set - " + e.getMessage());
+			logger.error("ERROR: result set - " + e.getMessage());
 			return (false);
 		}
 	  return true;
@@ -463,7 +459,7 @@ public class MonitorModel
 		addConstraint (buf, "fromPartyId=", null);
 		try
 		{
-	  	Statement stmt = props.query(conn, "SELECT recordId FROM " 
+	  	Statement stmt = props.query ("SELECT recordId FROM " 
 	    		+ mon.getTable() + buf.toString() + " ORDER by recordId ASC", 10);
 			if (stmt == null)
 				return true;
@@ -475,10 +471,10 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.severe("ERROR: result set - " + e.getMessage());
+			logger.error("ERROR: result set - " + e.getMessage());
 			return false;
 		}
-		logger.finest("prev=" + prev);
+		logger.debug("prev=" + prev);
 		if (prev > top)
 		  mon.setPrev(prev);
 		return true;
@@ -522,7 +518,7 @@ public class MonitorModel
 	  for (int i = 1; i <= m.getColumnCount(); i++)
 	  {
 	  	if (m.isSearchable(i)) names.add (m.getColumnName(i));
-	  	else logger.finest("skipping " + m.getColumnName(i));
+	  	else logger.debug("skipping " + m.getColumnName(i));
 	  }
 	  return names;
 	}
@@ -538,7 +534,7 @@ public class MonitorModel
 		if (!openConnection ())
 			return false;
 		if (!setTables ())
-			logger.severe("failed initializing receiver monitor");
+			logger.error("failed initializing receiver monitor");
 		return true;
 	}
 
@@ -611,7 +607,7 @@ public class MonitorModel
 		ArrayList parties = new ArrayList();
 		try
 		{
-			Statement stmt = props.query(conn, "SELECT distinct (fromPartyId) from " 
+			Statement stmt = props.query("SELECT distinct (fromPartyId) from " 
 				+ table, 0);
 			ResultSet res = stmt.getResultSet();
 			while (res.next ())
@@ -623,7 +619,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.severe("Error reading party ID list");
+			logger.error("Error reading party ID list");
 		}
 		return parties;
 	}
@@ -643,13 +639,13 @@ public class MonitorModel
 			return null;
 		if ((prefix == null) || (suffix == null))
 		{
-			logger.severe("null prefix or suffix for " + xname);
+			logger.error("null prefix or suffix for " + xname);
 		  return null;
 		}
 		ArrayList l = new ArrayList ();
 		for (int i = 0; i < x.getTagCount(prefix); i++)
 			l.add (x.getValue(prefix + "[" + i + "]." + suffix));
-		logger.finest("found " + l.size() + " entries for " + prefix + " in " + xname);
+		logger.debug("found " + l.size() + " entries for " + prefix + " in " + xname);
 		return l;
 	}
 
@@ -663,26 +659,25 @@ public class MonitorModel
 	{
 		if (name == null)
 		{
-			logger.severe("null XML name");
+			logger.error("null XML name");
 			return null;
 		}
 		File f = new File (name);
 		if (!f.canRead())
 		{
-			logger.severe("can't read " + name);
+			logger.error("can't read " + name);
 			return null;
 		}
 		XmlContent x = new XmlContent ();
 		if (!x.load(f))
-			logger.severe("failed parsing " + name);
+			logger.error("failed parsing " + name);
 		return x;
 	}
 	
 	private boolean openConnection ()
 	{
-		props.closeConnection (conn);
-		conn = props.getConnection ();
-		return (conn != null);
+		props.closeConnection ();
+		return (props.getConnection() != null);
 	}
 		
 	/**
@@ -716,10 +711,10 @@ public class MonitorModel
 		}
 		catch (Exception e)
 		{
-			logger.severe("date value: " + value);
+			logger.error("date value: " + value);
 			d = new java.util.Date();
 		}
-		logger.finest("Date: " + d.toString());
+		logger.debug("Date: " + d.toString());
 		return d.getTime();
 	}
 	

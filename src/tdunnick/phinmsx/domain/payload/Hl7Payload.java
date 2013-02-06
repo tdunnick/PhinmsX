@@ -17,7 +17,7 @@
  *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tdunnick.phinmsx.domain;
+package tdunnick.phinmsx.domain.payload;
 
 import tdunnick.phinmsx.minihl7.*;
 

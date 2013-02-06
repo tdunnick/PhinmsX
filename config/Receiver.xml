@@ -3,6 +3,7 @@
   <receiverXML>C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/phinms/config/receiver/receiver.xml</receiverXML>
   <logContext>RcvServlet</logContext>
   <logDir>C:/usr/workspace/PhinmsX/log/</logDir>
+  <logName>receiver.log</logName>
   <logLevel>detail</logLevel>
   <logDebug>true</logDebug>
   <incomingDir>C:/usr/workspace/PhinmsX/data/</incomingDir>

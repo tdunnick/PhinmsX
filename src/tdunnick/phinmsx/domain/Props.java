@@ -20,9 +20,10 @@ package tdunnick.phinmsx.domain;
 
 import java.io.*;
 import java.sql.*;
-import java.util.logging.*;
-import gov.cdc.nedss.services.security.encryption.PasswordResolver;
+import org.apache.log4j.*;
 
+import tdunnick.phinmsx.crypt.*;
+import tdunnick.phinmsx.util.XLog;
 import tdunnick.phinmsx.util.XmlContent;
 
 /**
@@ -82,6 +83,8 @@ public class Props
 	private String propRoot = "";
 	private XmlContent props = null;
 	private Logger logger = null;
+	private String tableName = null;
+	Connection conn = null;
 	
 	/**
 	 * Load a configuration and initial the properties.  Will merge
@@ -94,12 +97,12 @@ public class Props
 	{
 		if ((props = getProps (conf)) == null)
 		{
-			System.err.println ("Unable to load properties from " + conf);
+			// System.err.println ("Unable to load properties from " + conf);
 			return false;
 		}
 		if ((propRoot = props.getRoot ()) == null)
 		{
-			System.err.println ("Unable to find root tag for " + conf);
+			// System.err.println ("Unable to find root tag for " + conf);
 			return false;
 		}
 		propRoot += ".";
@@ -110,14 +113,14 @@ public class Props
 			XmlContent r = getProps (s);
 			if ((r == null) || !props.merge (r, false))
 			{
-				System.out.println ("ERROR: failed merging properties from " + s);
+				// System.out.println ("ERROR: failed merging properties from " + s);
 				return false;
 			}
-			System.out.println ("Merged configuration with " + s);
+			// System.out.println ("Merged configuration with " + s);
 		}
 		else
 		{
-			System.err.println ("WARNING: missing " + propRoot + Props.RECEIVERXML);
+			// System.err.println ("WARNING: missing " + propRoot + Props.RECEIVERXML);
 		}
 		// these are must haves
 		if (getProperty (Props.LOGCONTEXT) == null)
@@ -126,9 +129,30 @@ public class Props
 			props.setValue(propRoot + Props.TEMPDIR, Props.DFLTTEMPDIR);
 		if (getProperty (Props.QUEUENAME) == null)
 			props.setValue(propRoot + Props.QUEUENAME, Props.DFLTQUEUE);
-		return (true);
+		return true;
 	}
 
+	public String getTableName ()
+	{
+		if (tableName != null)
+		  return tableName;
+		String queue = getProperty (Props.QUEUENAME);
+		String mapname = getProperty (Props.QUEUEMAP);
+		if ((queue == null) || (mapname == null))
+			return null;
+		// getLogger().debug("Loading queue map " + mapname);
+		XmlContent map = new XmlContent ();
+		if (!map.load (new File (mapname)))
+			return null;
+		for (int i = 0; i < map.getTagCount("QueueMap.workerQueue"); i++)
+		{
+			String prefix = "QueueMap.workerQueue[" + i + "].";
+			if (queue.equals(map.getValue(prefix + "queueId")))
+				return tableName = map.getValue(prefix + "tableName");
+		}
+		return null;
+	}
+	
 	/**
 	 * Convenience to get the XML configuration - most likey never used.
 	 * @return current XML properties
@@ -174,7 +198,7 @@ public class Props
 		XmlContent xml = new XmlContent ();
 		if (!xml.load(f))
 		{
-			logger.severe("Failed loading " + name + " - " + xml.getError());
+			logger.error("Failed loading " + name + " - " + xml.getError());
 			return null;
 		}
 		return xml;
@@ -182,35 +206,7 @@ public class Props
 	
 	/**************************** logging ********************************/
 
-	/**
-	 * Set the logging level
-	 * @param level one of "all", "debug", "error", "fatal", "info", or "warn"
-	 */
-	public void setLogLevel (Logger logger, String level)
-	{
-		Level l = Level.INFO;
-		if (level == null)
-			level = "INFO";
-		if (level.equalsIgnoreCase("ALL"))
-			l = Level.ALL;
-		else if (level.equalsIgnoreCase("DETAIL"))
-			l = Level.FINEST;
-		else if (level.equalsIgnoreCase("ERROR"))
-			l = Level.SEVERE;
-		else if (level.equalsIgnoreCase("FATAL"))
-			l = Level.SEVERE;
-		else if (level.equalsIgnoreCase("INFO"))
-			l = Level.INFO;
-		else if (level.equalsIgnoreCase("WARN"))
-			l = Level.WARNING;
-		else
-			l = Level.parse(level);
-		logger.setLevel(l);
-		Handler[] h = logger.getHandlers();
-		for (int i = 0; i < h.length; i++)
-			h[i].setLevel(l);
-	}
-	
+
 	/**
 	 * return our default logger
 	 * @return
@@ -218,10 +214,19 @@ public class Props
 	public Logger getLogger ()
 	{
 		if (logger == null)
-			return getLogger (null, true);
+			return getLogger (null, false);
 		return this.logger;
 	}
 
+	/**
+	 * force the use of this logger
+	 * @param logger
+	 */
+	public void setLogger (Logger logger)
+	{
+		this.logger = logger;
+	}
+	
 	/**
 	 * Set up for logging. 
 	 * 
@@ -235,52 +240,57 @@ public class Props
 			prefix = propRoot;
 		else
 			prefix = propRoot + prefix;
+		String l = props.getValue(Props.LOGDEBUG);
+		boolean debug = ((l != null) && l.equalsIgnoreCase("TRUE"));
 		String s = props.getValue (prefix + Props.LOGCONTEXT);
-		// check to see if this context is set and use it if it is
-		Logger newlog = LogManager.getLogManager().getLogger(s);
-		if (newlog == null)
+		if (s == null)
 		{
-			newlog = Logger.getLogger(s);
-			if (logger == null)
-				logger = newlog;
+			return (logger = XLog.getRootLogger(debug));
 		}
-		else if (!reconfigure)			
-			return (newlog);
-		Handler[] h = newlog.getHandlers();
-		for (int i = 0; i < h.length; i++)
-		  newlog.removeHandler(h[i]);
-		
+		logger = Logger.getLogger(s);
+		if (!reconfigure && logger.getAllAppenders().hasMoreElements())
+			return logger;
+		logger.removeAllAppenders();
+    XLog.setLogLevel (logger, props.getValue(prefix + Props.LOGLEVEL));
+	
+		PatternLayout layout = new PatternLayout (debug ? XLog.DFMT : XLog.FMT);
 		// create and configure a new logger
-		String logName = props.getValue(prefix + Props.LOGDIR);
-		if (logName == null)
-			logName = "%t/";
-		if ((s = props.getValue(prefix + Props.LOGNAME)) == null)
-			s = props.getValue (prefix + Props.LOGCONTEXT);
-		logName += s + "%g.log";
-		try
+	  if (((l = props.getValue(prefix + Props.LOGDIR)) == null) || debug)
+	  {
+		  logger.addAppender(new ConsoleAppender (layout));
+		  if (l == null)
+	      return logger;
+	  }
+		String logName = props.getValue(prefix + Props.LOGNAME);
+		if ((logName == null) || (logName.length() == 0))
+			logName = "phinmsx.log";
+		logName = l + logName;
+    try
 		{
-		  Handler handler = new FileHandler(logName, FILE_SIZE, NUM_FILES,	true);
-			handler.setFormatter(new SimpleFormatter());
-			newlog.addHandler(handler);
-			if (((s = props.getValue(prefix + Props.LOGDEBUG)) != null) && 
-			  s.equalsIgnoreCase("true"))
-			{
-				System.out.println ("add console handler");
-				handler = new ConsoleHandler ();
-				newlog.addHandler(handler);
-			}
-			newlog.setUseParentHandlers(false);
+    	RollingFileAppender appender = 
+    		new RollingFileAppender (layout, logName, true);
+    	appender.setMaxBackupIndex(5);
+    	appender.rollOver(); 
+    	appender.setImmediateFlush(true);
+			logger.addAppender(appender);
+			return logger;
 		}
 		catch (IOException e)
 		{
-			newlog.severe("Unable to set log file to " + logName + ": " + e.getMessage());
+		  logger.addAppender(new ConsoleAppender (layout));
+			logger.error ("Unable to set log file to " 
+					+ logName + ": " + e.getMessage());
 		}
-    setLogLevel (newlog, props.getValue(prefix + Props.LOGLEVEL));
-		return newlog;
+		return null;
 	}
 	
 	
 	/*************************** db management *************************/
+	
+	public Statement query (String q)
+	{
+		return query (q, 0);
+	}
 	
 	/**
 	 * Issues an SQL query.  Caller is responsible for closing the returned
@@ -290,27 +300,22 @@ public class Props
 	 * @param q query to issue
 	 * @return resulting statement
 	 */
-	public Statement query (Connection conn, String q, int rowlimit)
+	public Statement query (String q, int rowlimit)
 	{
-		if (q == null)
+		if ((q == null) || (getConnection() == null))
 			return (null);
 		try
 		{
 		  Statement s = conn.createStatement();
 		  if (rowlimit > 0)
 		  	s.setMaxRows(rowlimit);
-		  if (!s.execute(q))
-		  {
-		    logger.severe ("failed execution - " + q);
-		  	s.close ();
-		  	return null;
-		  }
+		  s.execute(q);
 		  return (s);
 		}
 		catch (SQLException e)
 		{
-			logger.severe ("Unable to complete query " + q + " - " 
-				+ e.getLocalizedMessage());
+			logger.error ("Unable to complete query " + q + " - " 
+				+ e.getMessage());
 		}
 		return null;		
 	}
@@ -323,6 +328,9 @@ public class Props
 	 */
 	public Connection getConnection ()
 	{
+		if (conn != null)
+			return (conn);
+		
 		String jdbcDriver = getProperty(Props.JDBCDRIVER);
 		String databaseUrl = getProperty(Props.DATABASEURL);
 		String databaseUser = getProperty(Props.DATABASEUSER);
@@ -332,20 +340,16 @@ public class Props
 		String key = getProperty(Props.KEY);
 		String seed = getProperty (Props.SEED);
 		String passfile = getProperty(Props.PASSWORDFILE);
-
-		PasswordResolver res;
-		try
+		
+		Passwords pw = new Passwords ();
+		if (!pw.load(passfile, seed, key))
 		{
-			res = new PasswordResolver(passfile, seed, key);
-		}
-		catch (Exception e)
-		{
-			logger.severe ("ERROR: Can't resolve passwords");
+			logger.error ("ERROR: Can't resolve passwords");
 			return null;
 		}
-		databaseUser = res.resolvePassword(databaseUser);
-		databasePasswd = res.resolvePassword(databasePasswd);
-
+		databaseUser = pw.get(databaseUser);
+		databasePasswd = pw.get(databasePasswd);
+		
 		try
 		{
 			if (Class.forName(jdbcDriver) == null)
@@ -353,10 +357,9 @@ public class Props
 		}
 		catch (ClassNotFoundException e)
 		{
-			logger.severe ("Unable to load " + jdbcDriver);
+			logger.error ("Unable to load " + jdbcDriver);
 			return null;
 		}
-		Connection conn = null;
 		try
 		{
 			conn = 
@@ -364,7 +367,7 @@ public class Props
 		}
 		catch (Exception e)
 		{
-			logger.severe ("Unable to connect to " 
+			logger.error ("Unable to connect to " 
 					+ databaseUrl + " - " + e.getLocalizedMessage());
 			return (null);
 		}
@@ -375,7 +378,7 @@ public class Props
 	 * closes a connection
 	 * @param conn
 	 */
-	public void closeConnection (Connection conn)
+	public void closeConnection ()
 	{
 		if (conn != null)
 		{
@@ -386,7 +389,7 @@ public class Props
 			}
 			catch (SQLException e)
 			{
-			  logger.severe ("Failed closing connection - " 
+			  logger.error ("Failed closing connection - " 
 						+ e.getLocalizedMessage());
 			}
 		  conn = null;

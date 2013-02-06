@@ -20,6 +20,7 @@
 package tdunnick.phinmsx.helper;
 
 import tdunnick.phinmsx.domain.*;
+import tdunnick.phinmsx.domain.payload.Hl7Payload;
 
 /**
  * Fesi Helper featuring and HL7 Bar object.

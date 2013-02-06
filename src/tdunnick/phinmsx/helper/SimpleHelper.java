@@ -22,9 +22,10 @@ package tdunnick.phinmsx.helper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.logging.*;
+import org.apache.log4j.*;
 import tdunnick.phinmsx.model.*;
 import tdunnick.phinmsx.domain.*;
+import tdunnick.phinmsx.domain.receiver.RcvEnv;
 
 /**
  * An implementation of the Receiver's helper.  Note that the receiver
@@ -100,7 +101,7 @@ public class SimpleHelper implements RcvHelper
 		File f = new File (env.filePath);
 		if (!f.exists())
 			return f;
-		getLogger(env).finest("File " + env.filePath + " exists, trying full name");
+		getLogger(env).debug ("File " + env.filePath + " exists, trying full name");
 		// if the above wasn't unique, or the preferred extension didn't match
 		// simply add it
 		env.filePath = folder + env.fileName + ext;
@@ -136,13 +137,13 @@ public class SimpleHelper implements RcvHelper
 			fos.close();
 			if (!tmpFile.renameTo(outFile))
 			{
-				getLogger(env).severe("ERROR: Unable to rename " + tmpFile.getPath() + 
+				getLogger(env).error ("ERROR: Unable to rename " + tmpFile.getPath() + 
 						" to "	+ outFile.getPath());
 			}
 		}
 		catch (IOException e)
 		{
-			getLogger(env).severe("Failed writing data to " + outFile.getPath());
+			getLogger(env).error ("Failed writing data to " + outFile.getPath());
 			return false;
 		}
 		return true;

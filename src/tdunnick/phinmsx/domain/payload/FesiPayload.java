@@ -16,67 +16,26 @@
  *  You should have received a copy of the GNU General Public License
  *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
-package tdunnick.phinmsx.domain;
+package tdunnick.phinmsx.domain.payload;
 
 /**
- * A simple class to encapsulate the payload data.  Useful for FESI
+ * A common interface for FESI script objects used by the FesiHelper
  * 
  * @author Thomas Dunnick
  *
  */
-public class Payload implements FesiPayload
+public interface FesiPayload
 {
-	private String name = "Payload";
-	private byte[] data = null;
-	
-	public Payload (byte[] data)
-	{
-		this.data = data;
-	}
-	
-	public Payload (String name, byte[] data)
-	{
-		this.name = name;
-		this.data = data;
-	}
-	
-	public byte[] getData()
-	{
-		return data;
-	}
-
-	public void setData(byte[] data)
-	{
-		this.data = data;
-	}
-
-	public String getName()
-	{
-		return name;
-	}
-
-	public int length ()
-	{
-		return data.length;
-	}
-	
-	public void parse (String data)
-	{
-		this.data = data.getBytes();
-	}
-	
-	public String toString ()
-	{
-		return new String (data);
-	}
-	
-	public byte get (int i)
-	{
-		return data[i];
-	}
-	
-	public void set (int i, int v)
-	{
-		data[i] = (byte) v;
-	}
+	/**
+	 * @return
+	 */
+	public String getName ();
+  /**
+   * @param data
+   */
+  public void setData (byte[] data);
+  /**
+   * @return
+   */
+  public byte[] getData ();
 }

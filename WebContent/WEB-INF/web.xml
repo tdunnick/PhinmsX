@@ -40,6 +40,7 @@
   <servlet-mapping>
     <servlet-name>Receiver</servlet-name>
     <url-pattern>/status.html</url-pattern>
+    <url-pattern>/receiver</url-pattern>
   </servlet-mapping>
   <servlet>
     <description></description>

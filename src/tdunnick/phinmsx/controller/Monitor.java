@@ -20,16 +20,9 @@
 package tdunnick.phinmsx.controller;
 
 import java.io.*;
-import java.util.*;
-import java.util.logging.*;
-import java.sql.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
-
-import gov.cdc.nedss.common.Defines;
-import gov.cdc.nedss.services.queuemanager.DbConnectionEntry;
-import gov.cdc.nedss.services.security.encryption.PasswordResolver;
-
+import org.apache.log4j.*;
 import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.model.*;
 import tdunnick.phinmsx.util.*;
@@ -51,7 +44,6 @@ public class Monitor extends HttpServlet
 	public Monitor()
 	{
 		super();
-		// TODO Auto-generated constructor stub
 	}
 	
 	/**
@@ -99,7 +91,7 @@ public class Monitor extends HttpServlet
 	{
 		super.init();
 		System.out.println("Initializing Monitor Servlet ...");
-		System.out.println(Defines.VERSION);
+		System.out.println (Phinms.getVersion());
 		String configFile = config.getInitParameter("Config");
 		System.out.println("Configuration file=" + configFile);
 		if (configFile == null)
@@ -141,7 +133,7 @@ public class Monitor extends HttpServlet
 			HttpServletResponse response) throws ServletException, IOException
 	{
 		String s = request.getServletPath();
-		logger.finest("request path=" + s);
+		logger.debug ("request path=" + s);
 		if (s.contains ("dashboard.html"))
 		{
 			request.setAttribute("dashboard", mon.getDashBoardData (request));
@@ -155,7 +147,7 @@ public class Monitor extends HttpServlet
 		else if (s.contains(".png"))
 		{
 			byte[] img = mon.getChart(s, request);
-			logger.finest("img size=" + img.length);
+			logger.debug ("img size=" + img.length);
 			response.setHeader("Content-Type", "image/png");
 			response.setHeader("Content-Length", Integer.toString (img.length));
 			OutputStream out = response.getOutputStream();

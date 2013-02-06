@@ -22,8 +22,7 @@ package tdunnick.phinmsx.helper;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import tdunnick.phinmsx.domain.RcvEnv;
-import gov.cdc.nedss.services.logging.*;
+import tdunnick.phinmsx.domain.receiver.RcvEnv;
 
 public class Hl7AckHelper implements RcvHelper
 {

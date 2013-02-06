@@ -17,8 +17,8 @@
  *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-import junit.framework.TestCase
-import tdunnick.phinmsx.domain.*
+import groovy.util.GroovyTestCase;
+import tdunnick.phinmsx.domain.payload.*
 import tdunnick.phinmsx.helper.FesiHelper
 
 
@@ -26,7 +26,7 @@ import tdunnick.phinmsx.helper.FesiHelper
  * @author user
  *
  */
-public class FesiHelperTest extends TestCase
+public class FesiHelperTest extends GroovyTestCase
 {
 	FesiHelper fesi = new FesiHelper ();
   String msg = "" +

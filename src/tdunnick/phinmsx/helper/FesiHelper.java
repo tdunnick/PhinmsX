@@ -21,6 +21,9 @@ package tdunnick.phinmsx.helper;
 
 import java.io.*;
 import tdunnick.phinmsx.domain.*;
+import tdunnick.phinmsx.domain.payload.FesiPayload;
+import tdunnick.phinmsx.domain.payload.Payload;
+import tdunnick.phinmsx.domain.receiver.RcvEnv;
 import FESI.jslib.*;
 
 public class FesiHelper extends SimpleHelper
@@ -76,13 +79,13 @@ public class FesiHelper extends SimpleHelper
 		String progname = props.getProperty(SCRIPT);
 		if (progname == null)
 		{
-			props.getLogger().severe("Missing script name in configuration");
+			props.getLogger().error ("Missing script name in configuration");
 			return null;
 		}
 		byte[] data = readFile (progname);
 		if (data == null)
 		{
-			props.getLogger().severe("Cannot read script " + progname);
+			props.getLogger().error ("Cannot read script " + progname);
 			return null;
 		}
 		return new String (data);

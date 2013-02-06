@@ -1,7 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
 <%@ taglib uri="http://www.opensymphony.com/sitemesh/decorator" prefix="dec" %>
-<%@ page import="gov.cdc.nedss.common.Defines" %>
+<%@ page import="tdunnick.phinmsx.util.Phinms" %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--  
   Copyright (c) 2012 Thomas Dunnick (https://mywebspace.wisc.edu/tdunnick/web)
@@ -47,7 +47,7 @@
   <div id="footer">
      <hr style="clear:both"/>
      Copyright &copy; 2012 Thomas Dunnick - All Rights Reserved<p>
-     Currently running under <%= Defines.VERSION %> library. <br>
+     Currently running under <%= Phinms.getVersion() %> library. <br>
      For additional information please see
      <a href="https://mywebspace.wisc.edu/tdunnick/web/index.html" target="_blank">
       https://mywebspace.wisc.edu/tdunnick/web/index.html</a>.

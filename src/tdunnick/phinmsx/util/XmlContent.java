@@ -23,10 +23,8 @@ import java.io.*;
 import java.util.*;
 
 import org.w3c.dom.*;
+import org.apache.xml.serialize.*;
 import javax.xml.parsers.*;
-import javax.xml.transform.*; 
-import javax.xml.transform.dom.DOMSource; 
-import javax.xml.transform.stream.StreamResult;
 
 /** 
  * A simplified narrow view of XML documents implemented using the DOM model.
@@ -183,17 +181,19 @@ public class XmlContent
   		return false;
   	try
 		{
-			Transformer tFormer = TransformerFactory.newInstance().newTransformer();
-			// Output Types (text/xml/html)
-			tFormer.setOutputProperty(OutputKeys.METHOD, "xml");
-			if (beautify)
-			  tFormer.setOutputProperty(OutputKeys.INDENT, "yes");
-			if (fragment)
-				tFormer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-			Source source = new DOMSource(n);
-			Result result = new StreamResult(os);
-			tFormer.transform(source, result);
-			return true;
+      OutputFormat format = new OutputFormat(doc);
+      /*
+      if (beautify)
+      {
+        format.setLineWidth(65);
+        format.setIndenting(true);
+        format.setIndent(2);
+      }
+      */
+      Writer out = new OutputStreamWriter (os);
+      XMLSerializer serializer = new XMLSerializer(out, format);
+      serializer.serialize(doc);
+      return true;
 		}
 		catch (Exception e)
 		{

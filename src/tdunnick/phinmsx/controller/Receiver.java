@@ -23,19 +23,14 @@ import java.io.*;
 import java.net.*;
 import java.text.*;
 import java.util.*;
-import java.util.logging.*;
+import org.apache.log4j.*;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
 
-import gov.cdc.nedss.common.*;
-import gov.cdc.nedss.services.queuemanager.*;
-import gov.cdc.nedss.services.security.encryption.*;
-import gov.cdc.nedss.services.security.xml.encryption.*;
-import gov.cdc.nedss.services.transport.message.*;
-
 import tdunnick.phinmsx.domain.*;
-import tdunnick.phinmsx.model.*;
+import tdunnick.phinmsx.domain.receiver.*;
+import tdunnick.phinmsx.crypt.*;
 import tdunnick.phinmsx.helper.*;
 
 /**
@@ -63,7 +58,6 @@ public class Receiver extends HttpServlet
 	private Logger logger = null;
 	
 	// our dB queue manager and current map...
-	private static QueueUtil queuedb = null;
 	private static String queueMap = "";
 	
 	// our stats
@@ -86,15 +80,14 @@ public class Receiver extends HttpServlet
 		if (!env.props.load(propname))
 		{
 			if (propname != null)
-				logger.severe("ERROR: Failed reading " + propname);
+				System.err.println ("Failed reading " + propname);
 			if (props == null)
 				return null;
 			env.props = props;
 		}
 		else
-		{
-			logger.finest("Creating environment for " + propname);
-		  env.props.merge (props, false);
+		{		  
+			env.props.merge (props, false);
 		}
 		// create temp dir if needed
 		String tempdir = env.getProperty (Props.TEMPDIR);
@@ -121,87 +114,6 @@ public class Receiver extends HttpServlet
 		return props.getProperty (name);
 	}
 
-	/**
-	 * set up a dB connection
-	 * 
-	 * @param env for this connection
-	 * @return new connnection
-	 */
-	private DbConnectionEntry getConnection (RcvEnv env)
-	{
-		String databaseId = env.getProperty(Props.DATABASEID);
-		String dbType = env.getProperty(Props.DBTYPE);
-		String poolSize = env.getProperty(Props.POOLSIZE);
-		String jdbcDriver = env.getProperty(Props.JDBCDRIVER);
-		String databaseUrl = env.getProperty(Props.DATABASEURL);
-		String databaseUser = env.getProperty(Props.DATABASEUSER);
-		String databasePasswd = env.getProperty(Props.DATABASEPASSWD);
-
-		// get the dB password from the password store
-		String key = env.getProperty(Props.KEY);
-		String seed = env.getProperty (Props.SEED);
-		String passfile = env.getProperty(Props.PASSWORDFILE);
-
-		PasswordResolver res;
-		try
-		{
-			res = new PasswordResolver(passfile, seed, key);
-		}
-		catch (Exception e)
-		{
-			logger.severe("ERROR: Can't resolve passwords");
-			return null;
-		}
-		databaseUser = res.resolvePassword(databaseUser);
-		databasePasswd = res.resolvePassword(databasePasswd);
-
-		logger.finest("attempting to connect to " + databaseId);
-		return new DbConnectionEntry(databaseId, dbType, jdbcDriver,
-				databaseUrl, databaseUser, databasePasswd, 
-				Integer.parseInt(poolSize));
-	}
-	
-	/**
-	 * create or update a worker queue manager based on properties file. 
-	 * Leverage the cached queuedb if possible.  Uses shared static
-	 * properties queuedb and queueMap so this gets synchronized.
-	 * 
-	 * @param dbprops properties for this queue
-	 * @return the queue utility object
-	 */
-	private synchronized QueueUtil getQueueManager(RcvEnv env)
-	{	
-		if (queuedb == null)
-		{
-			logger.finest("Creating new queue manager");
-			queuedb = new QueueUtil(new DbConnectionList ());
-			queuedb.setQueueMapReader(new QueueMapReader());
-		}
-		// add a new connection if need be
-	  String dbid = env.getProperty(Props.DATABASEID);
-	  DbConnectionList dbList = queuedb.getDbConnectionList();
-		if (dbList.get(dbid) == null)
-		{
-			logger.finest("Adding queue connection");
-			DbConnectionEntry conn = getConnection(env);
-			if (conn == null)
-			{
-				logger.severe("ERROR: Failed to connect to " + dbid);
-				return null;
-			}
-			dbList.add(conn);
-		}
-		// set up the map reader
-		String queueMapName = env.getProperty(Props.QUEUEMAP);
-		if (!queueMap.equals (queueMapName))
-		{
-		  QueueMapReader r = queuedb.getQueueMapReader();
-			r.setQueueMap(queueMapName);
-			queueMap = queueMapName;
-		}
-		logger.finest("Queue configured for " + dbid);
-		return queuedb;
-	}
 
 	/**
 	 * add any needed escapes for SQL functions.
@@ -229,7 +141,7 @@ public class Receiver extends HttpServlet
 	 * @param rec to add
 	 * @return true if successful
 	 */
-	private boolean updateQueue(RcvEnv env, WorkerQueueRecord rec)
+	private boolean updateQueue(RcvEnv env, RcvRecord rec)
 	{
 		rec.setErrorCode(env.applicationStatus);
 		rec.setErrorMessage(sqlEscape(env.applicationError));
@@ -267,10 +179,9 @@ public class Receiver extends HttpServlet
 		// rec.setRecId(arg0);
 		rec.setStatus(sqlEscape(env.applicationResponse));
 		// add this record...
-		QueueUtil queuedb = getQueueManager (env);
-    if ((queuedb == null) || !queuedb.pushToQueue (env.getProperty (Props.QUEUENAME), rec))
+		if (!rec.insert (env.props))
 		{
-    	logger.severe("ERROR: can't push queue " 
+    	logger.error("Can't push queue " 
 					+ env.getProperty (Props.QUEUENAME));
 			// + " trying " + dfltIncomingQueue);
 			// queuedb.pushToQueue(dfltIncomingQueue, rec);
@@ -315,7 +226,7 @@ public class Receiver extends HttpServlet
 			logger.info("WARNING: Couldn't read status from " + fname);
 			return false;
 		}
-		logger.finest("Loaded " + stats.size() + " statistics");
+		logger.debug("Loaded " + stats.size() + " statistics");
 		return true;
 	}
 	
@@ -338,7 +249,7 @@ public class Receiver extends HttpServlet
 		}
 		catch (Exception e)
 		{
-			logger.severe("ERROR: Failed to save statistics - " 
+			logger.error("Failed to save statistics - " 
 					+ e.getLocalizedMessage());
 			return false;
 		}		
@@ -354,7 +265,7 @@ public class Receiver extends HttpServlet
 	 */
 	private StringBuffer getResponse(RcvEnv env)
 	{
-		/*
+		/* 
 		 * compose mime multi-part response with...
 		 * The payload is normally null, but should be base 64 encoded.
 		 * However, the MessageProcessor fails to make the needed updates
@@ -365,13 +276,14 @@ public class Receiver extends HttpServlet
 		 * so while URLEncode gets things through, they look like hell on the
 		 * sender side (sigh).
 		 */
-		StringBuffer response = MimeComposer.composeMessage (
+		RcvResponse m = new RcvResponse ();
+		StringBuffer response = m.getResponse (
 				env.applicationStatus,
 				env.applicationError,
 				env.applicationResponse,
-				getResponsePayload(env), 
-				getResponsePayloadName(env)); // payload MUST be named
-		logger.finest("Response: " + response.toString());
+				env.payload, 
+				env.payloadName); // payload MUST be named
+		logger.debug("Response: " + response.toString());
 		return (response);
 	}
 
@@ -417,34 +329,6 @@ public class Receiver extends HttpServlet
 		env.payloadName = payloadName;
 	}
 
-	/**
-	 * The response payload is arbitrary data, normally obtained from the helper.
-	 * It is base64 formatted and must be named.
-	 * 
-	 * @param env holding the data
-	 * @return base64 encoded data.
-	 */
-	private String getResponsePayload(RcvEnv env)
-	{
-		if ((env.payload == null) || (env.payloadName == null))
-			return null;
-		logger.finest("Payload: " + env.payload.toString());
-		return Base64Converter.byteArrayToBase64String(env.payload);
-	}
-
-	/**
-	 * The name used for the payload, presumably used by the sender to save it on
-	 * return.
-	 * 
-	 * @param env with name of payload
-	 * @return the payload name
-	 */
-	private String getResponsePayloadName(RcvEnv env)
-	{
-		if (env.payload == null)
-			return null;
-		return (env.payloadName);
-	}
 
 	/**
 	 * get the filename used for this message
@@ -542,7 +426,7 @@ public class Receiver extends HttpServlet
 		File f = new File (env.filePath);
 		if (!f.exists())
 			return true;
-		logger.finest("File " + env.filePath + " exists, trying full name");
+		logger.debug("File " + env.filePath + " exists, trying full name");
 		// if the above wasn't unique, or the preferred extension didn't match
 		// simply add it
 		env.filePath = getIncomingDir(env) + env.fileName 
@@ -580,43 +464,6 @@ public class Receiver extends HttpServlet
 	 */
 	private void setDecryptor(RcvEnv env)
 	{
-		// get keystore, password etc from properties
-		String keyStoreName = env.getProperty(Props.KEYSTORE);
-		logger.finest("Checking keystore " + keyStoreName);
-		if (XMLEncryptor.isKeyStoreOpen (keyStoreName))
-		{
-			logger.finest("Keystore " + keyStoreName + " already opened");
-			return;
-		}
-		String passtag = env.getProperty(Props.KEYSTOREPASSWD);
-		String key = env.getProperty(Props.KEY);
-		String seed = env.getProperty(Props.SEED);
-		String passfile = env.getProperty(Props.PASSWORDFILE);
-		logger.finest("Getting password from " + passfile);
-
-		// get the keystore password from the password store
-		PasswordResolver res;
-		try
-		{
-			res = new PasswordResolver(passfile, seed, key);
-		}
-		catch (Exception e)
-		{
-			logger.severe("ERROR: Can't resolve passwords");
-			return;
-		}
-		String passwd = res.resolvePassword(passtag);
-		logger.finest("Password for " + passtag + " found");
-
-		// check and open the keystore if needed
-		if (XMLEncryptor.openKeyStore(keyStoreName, passwd))
-		{
-			logger.finest("Keystore successfully opened");
-		}
-		else
-		{
-			logger.severe("ERROR: Can't open keystore " + keyStoreName);
-		}
 	}
 
 	/**
@@ -637,21 +484,21 @@ public class Receiver extends HttpServlet
 		RcvEnv env = getEnv (null);
 
 		// use the multi part parser
-		HttpMultiPartParser hmp = new HttpMultiPartParser();
-		logger.finest("Multipart successfully parsed");
+		RcvRequest mpp = new RcvRequest (env.props.getLogger());
 		try
 		{
 			// Splits mime message fields into text and payload
-			if (!hmp.processHttpRequest(request))
+			if (!mpp.parse (request.getHeader("Content-Type"), 
+					request.getInputStream()))
 			{
-				logger.severe("ERROR: Parsing multipart fields in request");
+				logger.error("Parsing multipart fields in request");
 				setResponse(env, "aborted", "bad mime format", "failure", null,	null);
 				return getResponse(env);
 			}
 		}
 		catch (Exception e)
 		{
-			logger.severe("ERROR: Parsing message in messagehandler");
+			logger.error("Parsing message in messagehandler");
 			setResponse(env, "aborted", "message format exception", "failure",
 					null, null);
 			return getResponse(env);
@@ -664,7 +511,7 @@ public class Receiver extends HttpServlet
 		 * create your own escape method.
 		 */
 		// prepare a new queue record...
-		WorkerQueueRecord rec = new WorkerQueueRecord();
+		RcvRecord rec = new RcvRecord();
 		// 06/19/10 - fill in defaults required for non-null fields
 		rec.setService("unknown");
 		rec.setAction("unknown");
@@ -673,59 +520,37 @@ public class Receiver extends HttpServlet
 
 		// parse the text parameters
 		// the Message Receiver can send multiple text parameters
-		logger.finest("Checking arguments...");
-		StringTokenizer st = new StringTokenizer(hmp.getTextPart(), "&");
-		while (st.hasMoreTokens())
-		{
-			token = st.nextToken();
-			logger.finest("checking token " + token);
-			if (token.startsWith("from"))
-			{
-				rec.setFromPartyId(token.substring(token.indexOf("=") + 1).trim());
-			}
-			else if (token.startsWith("service"))
-			{
-				rec.setService(token.substring(token.indexOf("=") + 1).trim());
-			}
-			else if (token.startsWith("action"))
-			{
-				rec.setAction(token.substring(token.indexOf("=") + 1).trim());
-			}
-			else if (token.startsWith("manifest"))
-			{
-				String m;
+		logger.debug("Checking arguments...");
+		rec.setFromPartyId(mpp.getArgument("from"));
+		rec.setService(mpp.getArgument("service"));
+		rec.setAction(mpp.getArgument("action"));
 
-				rec.setArguments(m = token.substring(token.indexOf("=") + 1).trim());
-				logger.finest("manifest= " + m);
-				rec.setMessageId(parseManifest(m, "MessageId"));
-				logger.finest("MessageID: " + rec.getMessageId());
-			}
-			else if (token.startsWith("conf")) // unique configuration stuff
-			{
-				// load this environment
-				env = getEnv(token.substring(token.indexOf("=") + 1).trim());
-			}
-			else
-			{
-				logger.severe("ERROR: unhandled POST argument: " + token);
-			}
+		String m = mpp.getArgument("manifest");
+		if (m != null)
+		{
+
+			rec.setArguments(m);
+			logger.debug("manifest= " + m);
+			rec.setMessageId(parseManifest(m, "MessageId"));
+			logger.debug("MessageID: " + rec.getMessageId());
 		}
+		// load this environment
+		env = getEnv(mpp.getArgument("conf"));
 		// Do necessary processing of data here
 		// e.g., Copy file to disk as below
-		logger.finest("Getting payload...");
+		logger.debug("Getting payload...");
 		try
 		{
 			String payload;
 			byte[] data;
 
-			if ((payload = hmp.getPayloadPart()) != null)
+			if ((data = mpp.getPayLoad()) != null)
 			{
-				data = payload.getBytes();
-				setFileName(env, hmp.getFilename());
+				setFileName(env, mpp.getFileName());
 				// create a path to write the payload to
 				if (!setFilePath(env))
 				{
-					logger.severe("ERROR: Can't set path for " + env.fileName);
+					logger.error("Can't set path for " + env.fileName);
 					rec.setApplicationStatus("aborted");
 					rec.setProcessingStatus("rejected");
 					setResponse(env, "aborted", "duplicate or unusable file name",
@@ -737,30 +562,28 @@ public class Receiver extends HttpServlet
 				File outFile = new File(getFilePath(env));
 				File tmpFile = getTmpFile(env);
 				FileOutputStream fos = new FileOutputStream(tmpFile);
-
-				// decode if needed - normally always!
-				if (Base64Converter.isBase64(payload))
-				{
-					logger.finest("Payload is base64 encoded");
-					data = Base64Converter.base64StringToByteArray(payload);
-				}
+		
+				PayloadEncryptor crypt = new PayloadEncryptor ();
 
 				// is this encrypted?
-				if (XMLEncryptor.isEncryptedFile (payload = new String(data)))
+				if (crypt.isEncrypted (payload = new String(data)))
 				{
-					logger.finest("Payload is encrypted");
+					logger.debug("Payload is encrypted");
 					encrypted = "yes";
 					// are we prepared to decrypt it?
-					XMLEncryptor crypt = new XMLEncryptor();
-					data = crypt.decryptPayload (payload, env.getProperty (Props.KEYSTORE));
+					data = crypt.decryptPayload (
+							env.getProperty (Props.KEYSTORE),
+							env.getProperty (Props.KEYSTOREPASSWD),
+							env.getProperty(Props.KEYSTOREPASSWD),
+							payload);
 					// successfully decrypted?
 					if ((data == null) || (data.length == 0))
 					{
 						setResponse(env, "abnormal", "can not decrypt payload",
 								"warning", null, null);
-						logger.severe("ERROR: Decryption failed " + (data == null ? 
+						logger.error("Decryption failed " + (data == null ? 
 								"returned buffer null" : "returned buffer empty"));
-						logger.severe("ERROR: Unable to decrypt payload"
+						logger.error("Unable to decrypt payload"
 								+ (crypt == null ? " null decryptor" : " failed keystore "
 										+ env.getProperty (Props.KEYSTORE)));
 					}
@@ -768,21 +591,21 @@ public class Receiver extends HttpServlet
 				else
 				// wasn't encrypted
 				{
-					logger.finest ("Payload is not encrypted");
+					logger.debug ("Payload is not encrypted");
 				}
 				fos.write(data);
 				fos.flush();
 				fos.close();
 				if (!tmpFile.renameTo(outFile))
 				{
-					logger.severe("ERROR: Unable to rename " + tmpFile.getPath() + " to "
+					logger.error("Unable to rename " + tmpFile.getPath() + " to "
 							+ outFile.getPath());
 				}
 				// run the helper if one exists, in which case it sets the response
 				String helper = env.getProperty(Props.HELPER);
 				if (helper != null)
 				{
-					logger.finest ("running helper " + helper);
+					logger.debug ("running helper " + helper);
 					try
 					{
 						Class c = Class.forName(helper);
@@ -791,19 +614,20 @@ public class Receiver extends HttpServlet
 					}
 					catch (Exception e)
 					{
+					  logger.error(helper + " exception " + e.getMessage());
 						setResponse(env, "aborted", "application processing error", 
-								"failure", null, null);
+								e.getMessage(), null, null);
 					}
 				}
 			}
 		}
 		catch (Exception e)
 		{
-			logger.severe("ERROR: Internal error processing payload");
+			logger.error("Internal error processing payload " + e.getMessage());
 			rec.setApplicationStatus("aborted");
 			rec.setProcessingStatus("rejected");
 			setResponse(env, "aborted", "internal failure decoding payload",
-					"failure", null, null);
+					e.getMessage(), null, null);
 			updateQueue(env, rec);
 			return getResponse(env);
 		}
@@ -852,7 +676,7 @@ public class Receiver extends HttpServlet
 		loadStats ();
 		status = RcvStatus.getStatus ();
 		status.setVersion(Receiver.Version);
-		status.setPhinmsVersion(Defines.VERSION);
+		// status.setPhinmsVersion(Defines.VERSION);
 		status.setFields(heading);
 		status.setRecords(stats);
 		logger.info("Started ebxml.receivefile servlet");
@@ -880,7 +704,7 @@ public class Receiver extends HttpServlet
 			StringBuffer response = processRequest(req);
 			if (response == null)
 			{
-				logger.severe("ERROR: Failed to process POST request - no response");
+				logger.error("Failed to process POST request - no response");
 			}
 			else
 			{
@@ -891,7 +715,8 @@ public class Receiver extends HttpServlet
 		}
 		catch (Exception e)
 		{
-			logger.severe("ERROR: Post failed");
+			logger.error("Post exception " + e.getMessage());
+			e.printStackTrace();
 		}
 		logger.info("******************* Completed message "
 				+ "processing ********************");
@@ -900,10 +725,6 @@ public class Receiver extends HttpServlet
 	public void destroy()
 	{
 		saveStats ();
-		if (queuedb != null)
-		{
-			queuedb.getDbConnectionList().free ();
-		}
 		super.destroy();
 	}
 
@@ -911,7 +732,7 @@ public class Receiver extends HttpServlet
 	{
 		super.init(config);
 		System.out.println("Initializing Hl7Ack Receiver Servlet ...");
-		System.out.println(Defines.VERSION);
+		// System.out.println(Defines.VERSION);
 		String configFile = config.getInitParameter("Config");
 		System.out.println("Configuration file=" + configFile);
 		if (configFile == null)

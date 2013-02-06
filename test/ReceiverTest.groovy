@@ -16,24 +16,23 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-import junit.framework.TestCase
-import gov.cdc.nedss.services.transport.message.*
-import tdunnick.phinmsx.domain.*
+import org.apache.xerces.impl.dv.util.Base64;
+import groovy.util.GroovyTestCase;
+import tdunnick.phinmsx.domain.receiver.*
 import tdunnick.phinmsx.controller.*
 
 /**
  * @author user
  *
  */
-public class Hl7AckServletTest extends TestCase
+public class ReceiverTest extends GroovyTestCase
 {
 	Receiver srv;
 	
 	void setUp() throws Exception
 	{
 		srv = new Receiver ();
-		srv.initialize ("config/Hl7AckServlet.xml")
+		srv.initialize ("config/Receiver.xml")
 	}
 	
 	void tearDown() throws Exception
@@ -42,36 +41,19 @@ public class Hl7AckServletTest extends TestCase
 	
 	void testGetResponse ()
 	{
+		String fname = "foobar.txt"
+		String payload = "the quick brown fox"
+		println ("Loading env")
 		RcvEnv env = srv.getEnv (null);
-		StringBuffer r;
-		//r = srv.getResponse (env)
-		//println r.toString() + "\n\n"
-		env.fileName = "foobar.txt"
-		srv.setResponsePayload(env, "the quick brown fox".bytes)
-		r = srv.getResponse (env)
+		env.payloadName = fname
+		env.payload = payload.getBytes();
+		println ("getting response")
+		StringBuffer r = srv.getResponse (env)
 		println r.toString ()
-		HttpMultiPartParser hmp = new HttpMultiPartParser();
-		InputStream bins = new ByteArrayInputStream (r.toString().getBytes())
-		StringBuffer headers = new StringBuffer ()
-		hmp.processHttpResponse(bins, headers, 
-			"multipart/related; type=\"text/xml\"; boundary=\"1334427098890\"; start=\"textmimepart\"",
-			null)
-		String payloadcontent = hmp.getPayloadPart();
-		String payloadfilename = hmp.getFilename();
-		String params = hmp.getTextPart();
-		println "Payload:" + payloadcontent + "\n" + 
-		  "File:" + payloadfilename + "\n" + 
-		  "Parms:" + params
-	}
-
-	void testInit()
-	{
-		// fail("Not yet implemented")
+		RcvRequest rq = new RcvRequest ();
+        ByteArrayInputStream inp = new ByteArrayInputStream (r.toString().getBytes())
+        assert rq.parse (inp) : "failed to parse response"
+        assert rq.getFileName().equals(fname) : "file name"
+        assert new String(rq.getPayLoad()).equals(payload)
 	}	
-	
-	void testDestroy()
-	{
-		// fail("Not yet implemented")
-	}
-	
 }

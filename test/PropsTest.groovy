@@ -17,11 +17,42 @@
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tdunnick.phinmsx.helper;
+import org.apache.log4j.Logger
+import groovy.util.GroovyTestCase;
+import tdunnick.phinmsx.domain.*;
+import tdunnick.phinmsx.util.*;
 
-import tdunnick.phinmsx.domain.receiver.RcvEnv;
-
-public interface RcvHelper
+/**
+ * @author user
+ *
+ */
+public class PropsTest extends GroovyTestCase
 {
-	public boolean setResponse (RcvEnv env, byte[] data);
+	Props props;
+	
+	void setUp() throws Exception
+	{
+		props = new Props ();
+		assert props.load ("config/receiver.xml") : "Failed loading properties"
+		props.setLogger (XLog.getRootLogger(true));
+	}
+	
+	void tearDown() throws Exception
+	{
+	}
+	
+	void testGetTableName()
+	{
+		assert props.getTableName().equals("testworkerqueue") : "failed getting table name"
+	}
+	
+	void testGetProperty()
+	{
+		assert props.getProperty (Props.QUEUENAME).equals("workerqueue") : "failed getting queue name"
+ 	}
+	
+	void testGetLogger()
+	{
+		assert props.getLogger() != null : "no logger!"
+	}	
 }

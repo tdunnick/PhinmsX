@@ -556,7 +556,10 @@ public class MonitorModel
 	 */
 	private Object[] getTransport ()
 	{
-		XmlContent sxml = getXML (props.getProperty (Props.SENDERXML));
+		String s = props.getProperty (Props.SENDERXML);
+		if (s == null)
+			s = Phinms.getConfigPath() + "/sender/sender.xml";
+		XmlContent sxml = getXML (s);
 		if (sxml == null)
 			return null;
 		Object[] transport = new Object[2];

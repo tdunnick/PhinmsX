@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <RcvServlet>
-  <receiverXML>C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/phinms/config/receiver/receiver.xml</receiverXML>
-  <senderXML>C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/phinms/config/sender/sender.xml</senderXML>
+  <phinms>C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19</phinms>
   <logContext>Monitor</logContext>
   <logDir>C:/usr/workspace/PhinmsX/log/</logDir>
   <logLevel>detail</logLevel>

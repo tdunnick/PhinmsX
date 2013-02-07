@@ -76,18 +76,22 @@ public class Receiver extends HttpServlet
 	private RcvEnv getEnv (String propname)
 	{
 		RcvEnv env = new RcvEnv();
-		env.props = new Props ();
-		if (!env.props.load(propname))
+		if (propname == null)
 		{
-			if (propname != null)
-				System.err.println ("Failed reading " + propname);
 			if (props == null)
 				return null;
 			env.props = props;
 		}
 		else
-		{		  
-			env.props.merge (props, false);
+		{
+			env.props = new Props();
+			if (!env.props.load(propname, props.getProps()))
+			{
+				logger.error("Failed reading " + propname);
+				if (props == null)
+					return null;
+				env.props = props;
+			}
 		}
 		// create temp dir if needed
 		String tempdir = env.getProperty (Props.TEMPDIR);
@@ -197,7 +201,7 @@ public class Receiver extends HttpServlet
 		s[2] = env.applicationStatus;
 		s[3] = env.applicationError;
 		s[4] = env.applicationResponse;
-		stats.add (1, s);
+		stats.add (0, s);
 		while (stats.size() > 24)
 			stats.remove(24);
 	}

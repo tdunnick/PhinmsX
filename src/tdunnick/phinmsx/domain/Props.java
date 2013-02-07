@@ -23,6 +23,7 @@ import java.sql.*;
 import org.apache.log4j.*;
 
 import tdunnick.phinmsx.crypt.*;
+import tdunnick.phinmsx.util.Phinms;
 import tdunnick.phinmsx.util.XLog;
 import tdunnick.phinmsx.util.XmlContent;
 
@@ -32,7 +33,7 @@ import tdunnick.phinmsx.util.XmlContent;
  * However, it expects the configuration to mirror those found in
  * PHIN-MS (other than the root, which may be anything).
  * 
- * @author user
+ * @author tld tdunnick@wisc.edu
  *
  */
 public class Props
@@ -65,6 +66,7 @@ public class Props
 	public final static String DATABASEUSER = DATABASE + "databaseUser";
 	public final static String DATABASEPASSWD = DATABASE + "databasePasswd";
 	// unique to our configuration
+	public final static String PHINMS = "phinms";
 	public final static String RECEIVERXML = "receiverXML";
 	public final static String SENDERXML = "senderXML";
 	public final static String QUEUENAME = "queueName";
@@ -85,15 +87,28 @@ public class Props
 	private Logger logger = null;
 	private String tableName = null;
 	Connection conn = null;
-	
+		
 	/**
 	 * Load a configuration and initial the properties.  Will merge
 	 * with PHIN-MS receiver properties.
 	 * 
 	 * @param conf name of configuration file.
-	 * @return
+	 * @return true if successful
 	 */
 	public boolean load (String conf)
+	{
+		return load (conf, null);
+	}
+	
+	/**
+	 * Load a configuration and initial the properties and merge
+	 * with given properties.
+	 * 
+	 * @param conf name of configuration file.
+	 * @param r properties to merge with
+	 * @return true if successful
+	 */
+	public boolean load (String conf, XmlContent r)
 	{
 		if ((props = getProps (conf)) == null)
 		{
@@ -106,21 +121,24 @@ public class Props
 			return false;
 		}
 		propRoot += ".";
-		// copy in any missing but needed from receiver's xml
-		String s = getProperty (Props.RECEIVERXML);
-		if (s != null)
+		/*
+		 * if not merging with properties, then merge by default 
+		 * with receiver.xml
+		 */
+		if (r == null)
 		{
-			XmlContent r = getProps (s);
-			if ((r == null) || !props.merge (r, false))
-			{
-				// System.out.println ("ERROR: failed merging properties from " + s);
-				return false;
-			}
-			// System.out.println ("Merged configuration with " + s);
+			// set up the location of our PHIN-MS tomcat server, config, and version
+			Phinms.setTomcatPath(getProperty(Props.PHINMS));
+			// copy in any missing but needed from receiver's xml
+			String s = getProperty(Props.RECEIVERXML);
+			if (s == null)
+				s = Phinms.getConfigPath() + "/receiver/receiver.xml";
+			r = getProps(s);
 		}
-		else
+		if ((r == null) || !props.merge (r, false))
 		{
-			// System.err.println ("WARNING: missing " + propRoot + Props.RECEIVERXML);
+			// System.out.println ("ERROR: failed merging properties from " + s);
+			return false;
 		}
 		// these are must haves
 		if (getProperty (Props.LOGCONTEXT) == null)
@@ -203,6 +221,7 @@ public class Props
 		}
 		return xml;
 	}
+	
 	
 	/**************************** logging ********************************/
 

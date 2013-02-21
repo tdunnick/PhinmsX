@@ -19,11 +19,14 @@
 package tdunnick.phinmsx.domain;
 
 import java.io.*;
+import java.util.Map;
+import java.net.URL;
 import java.sql.*;
 import org.apache.log4j.*;
 
 import tdunnick.phinmsx.crypt.*;
 import tdunnick.phinmsx.util.Phinms;
+import tdunnick.phinmsx.util.StrUtil;
 import tdunnick.phinmsx.util.XLog;
 import tdunnick.phinmsx.util.XmlContent;
 
@@ -78,11 +81,9 @@ public class Props
 	public final static String STATUS = "status";
 
 	// a few configuration defaults
-	public final static String DFLTCONTEXT = "Hl7Ack";
 	public final static String DFLTQUEUE = "workerqueue";
-	public final static String DFLTTEMPDIR = "C:/temp/";
 	
-	private String propRoot = "";
+	private String propRoot = null;
 	private XmlContent props = null;
 	private Logger logger = null;
 	private String tableName = null;
@@ -102,7 +103,19 @@ public class Props
 	
 	/**
 	 * Load a configuration and initial the properties and merge
-	 * with given properties.
+	 * with given properties.  This does a lot of the initialization
+	 * and auto-configuration as follows:
+	 * <ul>
+	 * <li>Get a temporary (console) logger and the calling Class name (owner)</li>
+	 * <li>If a configuration is given, load it, otherwise create one</li>
+	 * <li>Set up the path (and version) to PHIN-MS if possible</li>
+	 * <li>Reconfigure and set up the permanent logger</li>
+	 * <li>Merge in given, or default properties</li>
+	 * <li>Make sure Tomcat has a temp directory</li>
+	 * <li>Make sure we have a temp directory</li>
+	 * <li>If we are a receiver, set specifics - this should probably
+	 * be moved to the receiver</li>
+	 * </ul>
 	 * 
 	 * @param conf name of configuration file.
 	 * @param r properties to merge with
@@ -110,46 +123,163 @@ public class Props
 	 */
 	public boolean load (String conf, XmlContent r)
 	{
-		if ((props = getProps (conf)) == null)
-		{
-			// System.err.println ("Unable to load properties from " + conf);
-			return false;
+		logger = XLog.console();
+		String owner = getParentClassName ();
+		String s = null;
+		File d = null;
+		
+		logger.debug ("OWNER " + owner);
+		
+		// if there is no configuration given, create one
+		if (conf == null)
+		{		
+			props = new XmlContent ();
+			props.createDoc();
+			propRoot = owner;
 		}
-		if ((propRoot = props.getRoot ()) == null)
+		else if (((props = getProps (conf)) == null) ||
+				((propRoot = props.getRoot ()) == null))
 		{
-			// System.err.println ("Unable to find root tag for " + conf);
+			logger.error("Unable to load properties from " + conf);
 			return false;
 		}
 		propRoot += ".";
+		
 		/*
-		 * if not merging with properties, then merge by default 
+		 * if PHIN-MS hasn't been identified, then try to set it
+		 * up by looking at various configuration settings and finally
+		 * from our own context.
+		 */
+		if (Phinms.getPath (null) == null)
+		{
+			String p = Phinms.setPath(getProperty (Props.PHINMS));
+			if (p == null)
+				p = Phinms.setPath(getProperty (Props.RECEIVERXML));
+			if (p == null)
+				p = Phinms.setPath(getProperty (Props.SENDERXML));
+			if (p == null)
+ 			  Phinms.setPath(Phinms.getContextPath());
+		}
+		
+		/*
+		 * set up a logging - note done BEFORE merging so that each
+		 * configuration will have it's own logging unless discretely
+		 * specified.
+		 */
+		if (getProperty (Props.LOGDIR) == null)
+		{
+			d = new File (Phinms.getContextPath() + "/../../phinmsx/logs");
+			if (!(d.exists() || d.mkdirs ()))
+				logger.error ("Can't create " + d.getPath ());
+			if (d.isDirectory())
+				setProperty (Props.LOGDIR, d.getAbsolutePath());			
+		}
+		if (getProperty (Props.LOGCONTEXT) == null)
+			setProperty (Props.LOGCONTEXT, owner);
+		if (getProperty (Props.LOGNAME) == null)
+			setProperty (Props.LOGNAME, owner + ".log");
+		if (getProperty (Props.LOGLEVEL) == null)
+			setProperty (Props.LOGLEVEL, "INFO");
+		getLogger (null, true);
+		
+		/*
+		 * if no properties were given, then merge by default 
 		 * with receiver.xml
 		 */
 		if (r == null)
 		{
-			// set up the location of our PHIN-MS tomcat server, config, and version
-			Phinms.setTomcatPath(getProperty(Props.PHINMS));
-			// copy in any missing but needed from receiver's xml
-			String s = getProperty(Props.RECEIVERXML);
+			// get receiver.xml
+			s = getProperty(Props.RECEIVERXML);
 			if (s == null)
-				s = Phinms.getConfigPath() + "/receiver/receiver.xml";
-			r = getProps(s);
+				s = Phinms.getPath("config") + "/receiver/receiver.xml";
+			if ((r = getProps(s)) == null)
+				logger.error ("Can't load " + s);
 		}
-		if ((r == null) || !props.merge (r, false))
+		if ((r != null) && !props.merge (r, false))
 		{
-			// System.out.println ("ERROR: failed merging properties from " + s);
+		  logger.fatal ("Failed merging properties from " + r.getRoot());
 			return false;
 		}
-		// these are must haves
-		if (getProperty (Props.LOGCONTEXT) == null)
-			props.setValue(propRoot + Props.LOGCONTEXT, Props.DFLTCONTEXT);
-		if (getProperty (Props.TEMPDIR) == null)
-			props.setValue(propRoot + Props.TEMPDIR, Props.DFLTTEMPDIR);
-		if (getProperty (Props.QUEUENAME) == null)
-			props.setValue(propRoot + Props.QUEUENAME, Props.DFLTQUEUE);
+		
+		/*
+		 * make sure tomcat has a temp directory
+		 */
+		if ((s = Phinms.getEnv("CATALINA_TMPDIR")) == null)
+		{
+			logger.error ("CATALINA_TMPDIR not set for Tomcat");
+		}
+		else
+		{
+			d = new File (s);
+			if (!(d.exists() || d.mkdirs()))
+			{
+				logger.error ("can't create CATALINA_TMPDIR");
+			}
+		}
+		
+		/*
+		 * set up a temp directory
+		 */
+		if ((s = getProperty (Props.TEMPDIR)) == null)
+		{
+			s = Phinms.getEnv("CATALINA_TMPDIR");
+			if (s == null)
+				s = Phinms.getEnv ("TEMP");
+			if (s == null)
+				s = Phinms.getEnv("TMP");
+			if (s == null)
+				s = Phinms.getContextPath() + "/../../phinmsx/tmp";
+
+			setProperty (Props.TEMPDIR, s);
+		}
+		d = new File (s);
+		if (!(d.exists() || d.mkdirs()))
+		{
+			logger.error ("can't create " + d.getPath());
+			setProperty (Props.TEMPDIR, null);
+		}
+		logger.debug("TEMPDIR " + s);
+		
+		/*
+		 * finally the status cache and default queue for the receiver
+		 */
+		if (owner.equals("Receiver"))
+		{
+			if (getProperty(Props.STATUS) == null)
+				setProperty(Props.STATUS, getProperty(Props.LOGDIR) + "/status.bin");
+			if (getProperty(Props.QUEUENAME) == null)
+				props.setValue(propRoot + Props.QUEUENAME, Props.DFLTQUEUE);
+		}
 		return true;
 	}
 
+	/**
+   * get the class name of whomever created this instance to use
+   * as the "owner" of this set of properties.
+   * @return
+   */
+  private String getParentClassName ()
+  {
+  	String s = getClass().getName();
+  	Exception e  = new Exception ();
+  	StackTraceElement[] t = e.getStackTrace();
+  	for (int i = 0; i < t.length; i++)
+  	{
+  		// System.out.println ("[" + i + "] " + t[i].getClassName());
+  		if (!t[i].getClassName().equals(s))
+  		{
+  			s = t[i].getClassName();
+  			i = s.lastIndexOf('.');
+  			return (s.substring(i + 1));
+  		}
+  	}
+  	return null;
+  }
+  
+	/**
+	 * get the name of the table for this QUEUENAME
+	 * @return
+	 */
 	public String getTableName ()
 	{
 		if (tableName != null)
@@ -186,7 +316,7 @@ public class Props
 	}
 	
 	/**
-	 * Retrieve a default serverlet property.  Note, most properties should
+	 * Retrieve a default property.  Note, most properties should
 	 * come from the request environment which includes these...
 	 * 
 	 * @param name of property sans prefix
@@ -194,9 +324,29 @@ public class Props
 	 */
 	public String getProperty (String name)
 	{
-		if (props == null)
-			return ("");
-		return props.getValue (propRoot + name);
+		if ((props == null) || (propRoot == null) || (name == null))
+			return (null);
+		String s = props.getValue (propRoot + name);
+		if ((s != null) && (s.length() == 0))
+		  s = null;
+		return s;
+	}
+
+	/**
+	 * Set a default property.  
+	 * @param name of property sans prefix
+	 * @param value to set
+	 */
+	public void setProperty (String name, String value)
+	{
+		logger.debug("Set " + name + " to " + value);
+		if ((props != null) && (propRoot != null))
+		{
+		  if (!props.setValue (propRoot + name, value))
+		  	logger.error("Can't set " + propRoot + name + " to " + value);
+		}
+		else
+			logger.warn ("Can't set " + name + " to " + value);
 	}
 
 	/**
@@ -256,41 +406,56 @@ public class Props
 		int FILE_SIZE = 10000;
 		int NUM_FILES = 5;
 		if (prefix == null)
-			prefix = propRoot;
-		else
-			prefix = propRoot + prefix;
-		String l = props.getValue(Props.LOGDEBUG);
+			prefix = "";
+		String l = getProperty (prefix + Props.LOGDEBUG);
 		boolean debug = ((l != null) && l.equalsIgnoreCase("TRUE"));
-		String s = props.getValue (prefix + Props.LOGCONTEXT);
+		String s = getProperty (prefix + Props.LOGCONTEXT);
 		if (s == null)
 		{
-			return (logger = XLog.getRootLogger(debug));
+			logger = XLog.console ();
+			logger.warn ("No LOGCONTEXT set - using console");
+			return logger;
 		}
 		logger = Logger.getLogger(s);
 		if (!reconfigure && logger.getAllAppenders().hasMoreElements())
 			return logger;
 		logger.removeAllAppenders();
-    XLog.setLogLevel (logger, props.getValue(prefix + Props.LOGLEVEL));
+    XLog.setLogLevel (logger, getProperty(prefix + Props.LOGLEVEL));
 	
 		PatternLayout layout = new PatternLayout (debug ? XLog.DFMT : XLog.FMT);
 		// create and configure a new logger
-	  if (((l = props.getValue(prefix + Props.LOGDIR)) == null) || debug)
+	  if (((l = getProperty (prefix + Props.LOGDIR)) == null) || debug)
 	  {
 		  logger.addAppender(new ConsoleAppender (layout));
 		  if (l == null)
+		  {
+		  	logger.warn("No LOGDIR set - using console");
 	      return logger;
+		  }
 	  }
-		String logName = props.getValue(prefix + Props.LOGNAME);
+	  if (!l.matches(".*[\\\\/]"))
+	  	l += "/";
+		String logName = getProperty(prefix + Props.LOGNAME);
 		if ((logName == null) || (logName.length() == 0))
 			logName = "phinmsx.log";
 		logName = l + logName;
+		XLog.console().debug ("Configuring appender for " + logName);
     try
 		{
     	RollingFileAppender appender = 
     		new RollingFileAppender (layout, logName, true);
-    	appender.setMaxBackupIndex(5);
-    	appender.rollOver(); 
     	appender.setImmediateFlush(true);
+    	s = getProperty (Props.LOGSIZE);
+    	if ((s != null) && s.matches("[0-9]+"))
+    		appender.setMaxFileSize(s);
+    	if ((s = getProperty (Props.LOGARCHIVE)) == null)
+    		s = "15";
+    	if (s.equalsIgnoreCase("false"))
+    		appender.setMaxBackupIndex(0);
+    	else if (s.matches("[0-9]+")) 
+      	appender.setMaxBackupIndex(Integer.parseInt(s));
+    	else
+      	appender.setMaxBackupIndex(15);
 			logger.addAppender(appender);
 			return logger;
 		}
@@ -363,7 +528,7 @@ public class Props
 		Passwords pw = new Passwords ();
 		if (!pw.load(passfile, seed, key))
 		{
-			logger.error ("ERROR: Can't resolve passwords");
+			logger.error ("Can't resolve passwords");
 			return null;
 		}
 		databaseUser = pw.get(databaseUser);

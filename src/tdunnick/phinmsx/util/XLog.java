@@ -1,25 +1,30 @@
 package tdunnick.phinmsx.util;
 
-import java.io.IOException;
-
 import org.apache.log4j.*;
-
-import tdunnick.phinmsx.domain.*;
 
 public class XLog
 {
 	public static String DFMT = "%d{ISO8601} [%t] %-5p: %m %l%n";
 	public static String FMT = "%d{ISO8601} [%t] %-5p: %m %l%n";
+	public static String DFTCONTEXT = "PhinmsxConsole";
+	public static Logger console = null;
 	
-	public static Logger getRootLogger (boolean debug)
+	public static synchronized Logger console ()
 	{
-		Logger logger = Logger.getRootLogger();
-		if (!logger.getAllAppenders().hasMoreElements())
+		if (console == null)
 		{
-			Layout p = new PatternLayout (debug ? DFMT : FMT);
-		  logger.addAppender(new ConsoleAppender (p));
+			console = Logger.getLogger(DFTCONTEXT);
+			if (!console.getAllAppenders().hasMoreElements())
+			{
+				console.setLevel(Level.ALL);
+				Layout p = new PatternLayout(FMT);
+				console.addAppender(new ConsoleAppender(p));
+			}
+			/*
+			 * console = new ConsoleLogger (DFTCONTEXT);
+			 */
 		}
-		return logger;
+		return console;
 	}
 	
 	/**
@@ -47,6 +52,5 @@ public class XLog
 		else
 			return;
 		logger.setLevel(l);
-	}
-	
+	}	
 }

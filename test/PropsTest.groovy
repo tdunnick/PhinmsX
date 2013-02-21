@@ -41,6 +41,13 @@ public class PropsTest extends GroovyTestCase
 	{
 	}
 	
+	void testGetParentClassName ()
+	{
+		String s = props.getParentClassName();
+		assert s != null : "Can't get parent class";
+		assert s.equals("NativeMethodAccessorImpl") : s + " didn't match expected";
+	}
+	
 	void testGetTableName()
 	{
 		assert props.getTableName().equals("testworkerqueue") : "failed getting table name"

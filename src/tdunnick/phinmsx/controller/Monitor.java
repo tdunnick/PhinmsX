@@ -74,6 +74,8 @@ public class Monitor extends HttpServlet
 		props = new Props();
 		if (!props.load(conf))
 		{
+			logger = XLog.console ();
+			logger.error("Failed initializing " + conf);
 			props = null;
 			return false;
 		}
@@ -90,20 +92,10 @@ public class Monitor extends HttpServlet
 	public void init(ServletConfig config) throws ServletException
 	{
 		super.init();
-		System.out.println("Initializing Monitor Servlet ...");
-		System.out.println (Phinms.getVersion());
-		String configFile = config.getInitParameter("Config");
-		System.out.println("Configuration file=" + configFile);
-		if (configFile == null)
-		{
-			System.err.println("Fatal error: monitor config file not specified");
-			return;
-		}
-		if (!initialize(configFile))
-		{
-			System.err.println("Fatal error: error initializing servlet");
-			return;
-		}
+		System.out.println ("Initializing Monitor Servlet ...");
+		Phinms.setContextPath(config.getServletContext().getRealPath("/"));
+		if (initialize(config.getInitParameter("Config")))
+			System.out.println ("Monitor running against " + Phinms.getVersion());
 	}
 
 	/**
@@ -133,33 +125,50 @@ public class Monitor extends HttpServlet
 			HttpServletResponse response) throws ServletException, IOException
 	{
 		String s = request.getServletPath();
+		String f = null;
+
 		logger.debug ("request path=" + s);
-		if (s.contains ("dashboard.html"))
+		Object o = null;
+		if (s.indexOf ("dashboard.html") >= 0)
 		{
-			request.setAttribute("dashboard", mon.getDashBoardData (request));
-			s = "dashboard.jsp";
+			if ((o = mon.getDashBoardData (request)) != null)
+			{
+				request.setAttribute("dashboard", o);
+				f = "dashboard.jsp";
+			}
 		}
-		else if (s.contains("queues.html"))
+		else if (s.indexOf ("queues.html") >= 0)
 		{
-			request.setAttribute("queues", mon.getMonitorData (request));
-			s = "queues.jsp";
+			if ((o = mon.getMonitorData(request)) != null)
+			{
+				request.setAttribute("queues", o);
+				f = "queues.jsp";
+			}
 		}
-		else if (s.contains(".png"))
+		else if (s.indexOf (".png") >= 0)
 		{
 			byte[] img = mon.getChart(s, request);
-			logger.debug ("img size=" + img.length);
-			response.setHeader("Content-Type", "image/png");
-			response.setHeader("Content-Length", Integer.toString (img.length));
-			OutputStream out = response.getOutputStream();
-			out.write(img);
-			out.close();
-			return;
+			if (img != null)
+			{
+				logger.debug ("img size=" + img.length);
+				response.setHeader("Content-Type", "image/png");
+				response.setHeader("Content-Length", Integer.toString (img.length));
+				OutputStream out = response.getOutputStream();
+				out.write(img);
+				out.close();
+				return;
+			}
 		}
 		else
 		{
-			s = "index.html";
+			f = "index.html";
 		}
-		RequestDispatcher view = request.getRequestDispatcher(s);
+		if (f == null)
+		{
+			request.setAttribute("error", new ErrorData (props));
+			f = "error.jsp";
+		}
+		RequestDispatcher view = request.getRequestDispatcher(f);
 		view.forward(request, response);
 	}
 }

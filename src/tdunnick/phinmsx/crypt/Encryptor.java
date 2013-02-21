@@ -30,7 +30,7 @@ import javax.crypto.spec.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.*;
 
-import tdunnick.phinmsx.util.ByteArray;
+import tdunnick.phinmsx.util.*;
 
 public class Encryptor
 {
@@ -53,18 +53,15 @@ public class Encryptor
 
 	private void init (Logger l)
 	{
-	  Security.insertProviderAt(new BouncyCastleProvider(), 1);
 	  if (l == null)
-	  {
-	  	logger = Logger.getRootLogger();
-	  	if (!logger.getAllAppenders().hasMoreElements())
-	  	{
-	  		Layout p = new PatternLayout ("%d{ISO8601} [%t] %-5p: %m %l%n");
-	  		logger.addAppender(new ConsoleAppender (p));
-	  	}
-	  }
+	  	logger = XLog.console ();
 	  else
-	  	logger = l;		
+	  	logger = l;
+	  if (Security.getProvider ("BC") == null)
+	  {
+		  if (Security.addProvider(new BouncyCastleProvider()) < 0)
+		  	logger.error("Couldn't add BC security provider");
+	  }
 	}
 	
 	private String getTransform (Key key)
@@ -96,21 +93,40 @@ public class Encryptor
 
   private KeyStore loadKeyStore (File f, String pw, String type)
   {
+  	KeyStore ks = null;
+  	FileInputStream is = null;
+  	try
+  	{
+  		is = new FileInputStream (f);
+  	}
+  	catch (IOException e)
+  	{
+  		logger.error ("Failed loading " + f.getAbsolutePath() + ": " 
+  				+ e.getMessage());
+  		return null;
+  	}
 		try
 		{
-			FileInputStream is = new FileInputStream (f);
-			KeyStore ks = KeyStore.getInstance(type);
+			ks = KeyStore.getInstance(type);
 			ks.load(is, pw.toCharArray());
-			is.close ();
-			return ks;
 		}
 		catch (Exception e)
 		{
 			String s = e.getMessage();
 			if (!s.equals("Invalid keystore format"))
 			  logger.error ("Failed loading " + f.getAbsolutePath() + ": " + s);
-			return null;
+			ks = null;
 		}
+		try
+		{
+			is.close ();
+		}
+		catch (IOException e)
+		{
+  		logger.error ("Failed closeing " + f.getAbsolutePath() + ": " 
+  				+ e.getMessage());			
+		}
+		return ks;
   }
   
 	/**
@@ -124,8 +140,12 @@ public class Encryptor
 	 */
   public KeyStore getKeyStore (String path, String passwd)
 	{
+  	logger.debug ("getting keystore..");
 		if ((path == null) || (passwd == null))
+		{
+			logger.debug("path or password is null");
 			return null;
+		}
 		File f = new File(path);
 		if (!f.canRead())
 		{
@@ -138,6 +158,29 @@ public class Encryptor
 		return (ks);
 	}
 	
+  /**
+   * Compare two distinguished names in an order/format independent way
+   * 
+   * @param dn1
+   * @param dn2
+   * @return true if they match
+   */
+  public boolean dnequals (String dn1, String dn2)
+  {
+  	String[] d1 = dn1.split("[ ,]+");
+  	String[] d2 = dn2.split("[ ,]+");
+  	Arrays.sort(d1);
+  	Arrays.sort(d2);
+  	for (int i = 0; i < d1.length; i++)
+  	{
+  		if (i >= d2.length) 
+  			return false;
+  		if (!d1[i].equalsIgnoreCase(d2[i]))
+  			return false;
+  	}
+  	return true;
+  }
+  
 	/**
 	 * Find the alias associate with a DN in a keystore.  If the DN
 	 * is empty or null, pick the first entry and fill in a non-null DN.
@@ -164,13 +207,14 @@ public class Encryptor
 			{
 				alias = (String) (a1.nextElement());
 				cert = (X509Certificate) ks.getCertificate(alias);
+				// if no dn is specified, return the first one found
 				if (pdn == null)
 				{
 					if (dn != null)
 						dn.append(cert.getSubjectDN().getName());
 					return alias;
 				}
-				if (pdn.equals(cert.getSubjectDN().getName()))
+				if (dnequals (pdn, cert.getSubjectDN().getName()))
 					return alias;
 				logger.debug("Skipping " + cert.getSubjectDN().getName());
 			}

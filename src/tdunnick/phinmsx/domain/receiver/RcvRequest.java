@@ -24,6 +24,7 @@ import java.io.*;
 import org.apache.log4j.*;
 import org.apache.xerces.impl.dv.util.Base64;
 
+import tdunnick.phinmsx.util.StrUtil;
 import tdunnick.phinmsx.util.XLog;
 
 public class RcvRequest
@@ -37,7 +38,7 @@ public class RcvRequest
 	
   public RcvRequest()
 	{ 
-  	this.logger = XLog.getRootLogger(true);
+  	this.logger = XLog.console();
 	}
   
   public RcvRequest (Logger logger)
@@ -146,7 +147,7 @@ public class RcvRequest
     	while ((c = in.read()) > 0)
     		b.append ((char) c);
       logger.debug("read:\n" + b.toString());
-    	return b.toString().replaceAll("\\r\\n", "\n");
+    	return StrUtil.replace(b.toString(), "\\r\\n", "\n");
     }
     catch (IOException e)
     {

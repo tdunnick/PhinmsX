@@ -100,6 +100,8 @@ public class Passwords
 	 */
 	public boolean load (String file, String passwd)
   {
+		if (file == null)
+			return false;
   	try
   	{
   		FileInputStream inp = new FileInputStream (file);

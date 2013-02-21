@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="PhinmsX" default="phinmsx" basedir=".">
+	<property name="name" value="PhinmsX" />
+	<property name="src" value="${basedir}/src" />
+	<property name="test" value="${basedir}/test" />
+	<property name="build" value="${basedir}/build/classes" />
+	<property name="tbuild" value="${basedir}/bin-groovy" />
+
+	<property name="tomcat" value="C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/common/lib" />
+	<property name="PhinmsX" value="${basedir}/WebContent/WEB-INF/lib" />
+	<property name="plugins" value="C:/eclipse/plugins" />
+	<!--
+	<property name="javahome" value="C:/Program Files/PhinMS/2.7.0/jdk/win32" />
+	<property name="javalib" value="${javahome}/jre/lib" />
+	-->
+	<property name="junitlib" value="${plugins}/org.junit_3.8.2.v20090203-1005" />
+	<property name="groovylib" value="${plugins}/org.codehaus.groovy_1.5.7.20081120_2330" />
+
+	<property name="phinmsxjar" value="phinmsx.jar" />
+  <property name="phinmsxwar" value="phinmsx.war" />
+
+	<property name="ant.build.javac.target" value="1.4" />
+  <property name="ant.build.javac.source" value="1.4" />
+	
+	<target name="phinmsx">
+    <antcall target="clean" />
+		<antcall target="test" />
+		<antcall target="dist" />
+	</target>
+
+	<target name="init">
+		<!-- Create the time stamp -->
+		<tstamp/>
+		<!-- Create the build directory structure used by compile -->
+		<mkdir dir="${build}"/>
+		<mkdir dir="${tbuild}" />
+		<delete>
+		  <fileset dir="${basedir}/log" includes="**/*" />
+		</delete>
+	</target>
+
+	<!-- perform any needed cleanup -->
+	<target name="clean" depends="init">
+		<delete>
+			<fileset dir="${build}" includes="**/*" />
+      <fileset dir="${tbuild}" includes="**/*" />
+		</delete>
+	</target>
+
+	<path id="javapath">
+		<fileset dir="${javalib}" includes="**/*.jar" />
+	</path>
+	
+	<!-- main compile task -->
+	<target name="compile" depends="init"
+        description="compile the source " >
+		<!-- Compile the java code from ${src} into ${build} -->
+		<javac srcdir="${src}" destdir="${build}">
+			<classpath>
+        <fileset dir="${tomcat}" includes="**/*.jar" />
+        <fileset dir="${PhinmsX}" includes="**/*.jar" />
+        <pathelement location="${build}" />
+			</classpath>
+		</javac>
+	</target>
+
+	<!-- groovy support for unit testing -->
+	<path id="groovypath">
+		<fileset dir="${groovylib}" includes="**/*.jar" />
+	</path>
+
+	<taskdef name="groovyc"
+	         classname="org.codehaus.groovy.ant.Groovyc"
+	         classpathref="groovypath"/>
+
+	<target name="gcompile" depends="init">
+		<groovyc srcdir="${test}" destdir="${tbuild}">
+			<classpath>
+				<!--
+				<fileset dir="${javalib}" includes="**/*.jar" />
+				-->
+				<fileset dir="${tomcat}" includes="**/*.jar" />
+				<fileset dir="${junitlib}" includes="**/*.jar" />
+				<fileset dir="${groovylib}" includes="**/*.jar" />
+				<fileset dir="${PhinmsX}" includes="**/*.jar" />
+				<pathelement location="${build}" />
+			</classpath>
+			<javac source="1.4" target="1.4" debug="on" />
+		</groovyc>
+	</target>
+
+	<!-- unit tests - note fork needed for bouncy castle loading -->
+	<target name="test" depends="compile,gcompile">
+		<junit fork="true" haltonfailure="true">
+			<classpath>
+				<fileset dir="${tomcat}" includes="**/*.jar" />
+				<fileset dir="${junitlib}" includes="**/*.jar" />
+				<fileset dir="${groovylib}" includes="**/*.jar" />
+				<fileset dir="${PhinmsX}" includes="**/*.jar" />
+				<pathelement location="${build}" />
+				<pathelement location="${tbuild}" />
+			</classpath>
+			<formatter type="brief" usefile="false" />
+			<test name="AllTests" />
+		</junit>
+	</target>
+
+	<!-- the distribution -->
+	<target name="dist">
+		<delete file="${basedir}/${phinmsxjar}" failonerror="false" />
+    <delete file="${basedir}/${phinmsxwar}" failonerror="false" />
+		<jar jarfile="${basedir}/${phinmsxjar}">
+			<fileset dir="${build}" 
+				excludes="/*/tmp/**" 
+			/>
+		</jar>
+		<war warfile="${basedir}/${phinmsxwar}">
+			<fileset dir="${basedir}\WebContent" excludes="**/web.xml" />
+			<zipfileset dir="${basedir}" includes="${phinmsxjar}"
+			  prefix="WEB-INF/lib" />
+      <zipfileset dir="${basedir}/config" includes="web.xml"
+        prefix="WEB-INF" />
+		</war>
+	</target>
+
+</project>

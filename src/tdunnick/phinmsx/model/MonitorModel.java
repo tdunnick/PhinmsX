@@ -128,8 +128,9 @@ public class MonitorModel
 	{
 		setSession (request);
 		MonitorData mon = new MonitorData (Version, Phinms.getVersion());		
-		setMonitor (mon, setSession (request));
-		return (mon);
+		if (setMonitor (mon, setSession (request)))
+		  return (mon);
+		return null;
 	}
 	
 	
@@ -142,8 +143,9 @@ public class MonitorModel
 	public DashBoardData getDashBoardData (HttpServletRequest request)
 	{
 		DashBoardData dash = getDashBoardSession (request);
-		setDashBoard (dash, setSession (request));
-		return dash;
+		if (setDashBoard (dash, setSession (request)))
+		  return dash;
+		return null;
 	}
 	
 	/**
@@ -160,9 +162,9 @@ public class MonitorModel
 	{
 		DashBoardData dash = getDashBoardSession (request);
 		Object[] c;
-		if (path.contains("bar"))
+		if (path.indexOf ("bar") >= 0)
 			c = dash.getBarchart ();	
-		else if (path.contains("line"))
+		else if (path.indexOf ("line") >= 0)
 			c = dash.getLinechart();
 		else
 			c = dash.getPiechart();
@@ -201,6 +203,8 @@ public class MonitorModel
 		String table = (String) session.getAttribute("table");
 		if (table == null)
 			table = getTransportName ();
+		if (table == null)
+			return false;
     dash.setSender(table.equals(getTransportName()));
 		int days = getInt((String) session.getAttribute("days"));
 		long ends = getDate((String) session.getAttribute("ends"));
@@ -343,7 +347,10 @@ public class MonitorModel
 	private boolean getData (MonitorData mon)
 	{
 		String constraintName = "routeInfo=";
-		if (mon.getTable().equals(getTransportName()))
+		String t = mon.getTable();
+		if (t == null)
+			return false;
+		if (t.equals(getTransportName()))
 			mon.setRowfields (new ArrayList (Arrays.asList(routeFields)));
 		else
 		{
@@ -405,9 +412,9 @@ public class MonitorModel
 				record.add(v);
 				if (v != null) 
 					{
-					if ((status == null) && v.contains("attempted"))
+					if ((status == null) && v.indexOf ("attempted") >= 0)
 						status = "attempted";
-						else if (v.contains("fail"))
+						else if (v.indexOf ("fail") >= 0)
 						status = "fail";
 					}
 				for (int j = 0; j < rowfields.size(); j++)
@@ -531,10 +538,11 @@ public class MonitorModel
 	 */
 	public boolean refresh ()
 	{
-		if (!openConnection ())
+		if (!openConnection () || !setTables ())
+		{
+			logger.error("Failed initializing Monitor tables");
 			return false;
-		if (!setTables ())
-			logger.error("failed initializing receiver monitor");
+		}
 		return true;
 	}
 
@@ -558,7 +566,7 @@ public class MonitorModel
 	{
 		String s = props.getProperty (Props.SENDERXML);
 		if (s == null)
-			s = Phinms.getConfigPath() + "/sender/sender.xml";
+			s = Phinms.getPath("config") + "/sender/sender.xml";
 		XmlContent sxml = getXML (s);
 		if (sxml == null)
 			return null;
@@ -576,6 +584,8 @@ public class MonitorModel
 	 */
 	private String getTransportName ()
 	{
+		if (tables == null)
+			return null;
 		return (String) ((Object[]) tables.get(0))[0];
 	}
 	

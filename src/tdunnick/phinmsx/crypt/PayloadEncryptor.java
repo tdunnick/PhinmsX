@@ -129,7 +129,7 @@ public class PayloadEncryptor
 	 */
 	public boolean isEncrypted (String payload)
 	{
-		return payload.contains("<" + ENCRYPT_ROOT);
+		return payload.indexOf ("<" + ENCRYPT_ROOT) >= 0;
 	}
 	
 	/**

@@ -25,11 +25,38 @@
 </head>
 <body>
 <content tag="pagetitle">PHIN-MS Extensions</content>
-<content tag="pageinfo">PhinmsX R.O. 0.10 08/12/2012</content>
-<h2>Welcome</h2>
+<h2>Contents</h2>
+<ul>
+<li><a href="#Welcome">Welcome</a></li>
+<li><a href="#Navigation">Navigation</a></li>
+<li><a href="#Installation">Installation</a></li>
+<li><a href="#General">General Configuration</a></li>
+<li><a href="#Web">Web Configuration and Securing PhinmsX</a></li>
+<li><a href="#Tags">Common Configuration Tags</a></li>
+<li><a href="#Auto">Auto Configuration</a></li>
+<li><a href="#Receiver">Receiver Configuration</a></li>
+<li><a href="#Helper">Helper Configuration</a></li>
+</ul><h2><a name="Welcome">Welcome</a></h2>
 <p>
 You are now using a set of extensions designed to work with the CDC
-<b>PHIN-MS</b> secure messaging system.  At the top of each page 
+<b>PHIN-MS</b> secure messaging system.  These include a monitor with
+dashboard and queue views, and a PHIN-MS receiver servlet with 
+configurable message handlers ("helpers").
+</p>
+<h2><a name="Navigation">Navigation</a></h2>
+<p>
+You access <b>PhinmsX</b> from your browser.  The domain and port for the
+URL will vary depending on your configuration, but the path will be
+<b>/phinmsx</b>.  For a bone stock PHIN-MS
+where you are browsing from the PHIN-MS server the URL would be:
+<pre>
+
+  http://localhost:5088/phinmsx
+
+</pre>
+You will need to adjust this depending on where you are browsing from and
+other details like proxies, etc.
+At the top of each page 
 you will find a set of navigation buttons that provide the following:
 <ul class="button">
   <li>
@@ -38,6 +65,17 @@ you will find a set of navigation buttons that provide the following:
    <li>
     <a href="dashboard.html">Dash Board</a> - an overview of PHIN-MS activity and
     status.
+		<p>
+		The dashboard includes a pie chart, line and bar graphs, and statistics.
+		You can "drill down" to specific data from the box holding the
+		pie chart.  Clicking on any section of the pie chart produces specific
+		for that route or party ID (depending on queue).
+		</p>
+		<p>
+		Under the pie chart you may select an ending date for the display and
+		the number of days to include in the charts and statistics.  Below
+		that you may select the queue of interest.
+		</p>
   </li>
   <li>
     <a href="queues.html">Queues</a> - comprehensive details for
@@ -64,6 +102,230 @@ you will find a set of navigation buttons that provide the following:
     messages handled by the <b>PhinmsX</b> receiver.
   </li>
 </ul>
+</p>
+<h2><a name="Installation">Installation</a></h2>
+<p>
+If you received a ZIP file, unzip it to a folder of your choice.
+In it you should find <b>phinmsx.war</b>.  Optionally use a zip editor 
+to add your custom configuration to <b>web.xml</b>
+(I like <b>7Zip</b>).  The details of these configurations are below.
+However, note that <b>PhinmsX</b> will normally auto-configure
+if running under the same Tomcat server as PHIN-MS.  
+</p>
+<p>
+Next determine where PHIN-MS was installed... typically 
+<b>C:\Program Files\PHINMS</b> or something 
+similar.  Then copy <b>phinmsx.war</b> to either 
+<b>2.7.0\tomcat-5.0.19\webapps\</b> or <b>appserver\webapps\</b>
+depending on your PHIN-MS version.  The PHIN-MS Tomcat server will
+automatically load and start <b>PhinmsX</b>.
+<font color="red">Unless you are
+creating a custom installation or using the <b>PhinmsX</b> Receiver, you
+can stop reading here!</font>
+</p>
+<p>
+You can also run <b>PhinmsX</b> from any web application server.  It does
+not have to run next to PHIN-MS.  However, that does require a
+custom configuration, since it will not have access to the PHIN-MS
+files to auto-configure.
+</p>
+<h2><a name="General">General Configuration</a></h2>
+<p>
+For the most part, <b>PhinmsX</b> will auto-configure, creating
+the needed folders and XML configuration files when it first
+starts, and reading other needed information from the PHIN-MS installation.  
+However, if you desire a custom installation you can
+modify this by providing your own configuration.
+</p>
+<p>
+<b>PhinmsX</b> uses XML files and a "merged" configuration strategy to simplify
+setup and leverage what has already been done in PHIN-MS. 
+When you update your PHIN-MS configuration (say add a new route),
+<b>PhinmsX</b> will normally incorporate those changes when restarted.
+</p>
+<p>
+Each <b>PhinmsX</b> configuration may include other configurations 
+references that are "merged" with it.  These references may be implied
+(PHIN-MS configuration files like <b>receiver.xml</b>).  All of the
+XML tags found in the referenced file will be incorporated into the
+configuration if not already defined.
+This "merged" strategy allows you over-ride or replace the 
+referenced (PHIN-MS) values.  For the most part, the first tag value
+defined is the one used.
+</p>
+<h2><a name="Web">Web Configuration and Securing PhinmsX</a></h2>
+<p>
+If you are installing <b>PhinmsX</b> on a different server than
+PHIN-MS, or simply wish to relocate its configuration you will need
+to modify <b>webapps\phinmsx\WEB-INF\web.xml</b> (see above).
+There you can specify the configuration files to use for the
+monitor and/or receiver by adding their paths to the <b>&lt;param-value&gt;</b>
+of the respective <b>&lt;servlet&gt;</b>.  In this example the configurations
+are located in <b>C:/PhinmsX/config/</b>.
+</p>
+<pre>
+
+  &lt;servlet&gt;
+    &lt;description&gt;PhinmsX Message Receiver&lt;/description&gt;
+    &lt;display-name&gt;Receiver&lt;/display-name&gt;
+    &lt;servlet-name&gt;Receiver&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;tdunnick.phinmsx.controller.Receiver&lt;/servlet-class&gt;
+    &lt;init-param&gt;
+      &lt;description&gt;Receiver configuration&lt;/description&gt;
+      &lt;param-name&gt;Config&lt;/param-name&gt;
+      &lt;param-value&gt;C:/PhinmsX/config/Receiver.xml&lt;/param-value&gt;
+    &lt;/init-param&gt;
+    &lt;load-on-startup&gt;1&lt;/load-on-startup&gt;
+  &lt;/servlet&gt;
+	
+  &lt;servlet&gt;
+    &lt;description&gt;PhinmsX Dashboard and Queue Monitor&lt;/description&gt;
+    &lt;display-name&gt;Monitor&lt;/display-name&gt;
+    &lt;servlet-name&gt;Monitor&lt;/servlet-name&gt;
+    &lt;servlet-class&gt;tdunnick.phinmsx.controller.Monitor&lt;/servlet-class&gt;
+    &lt;init-param&gt;
+      &lt;description&gt;Monitor configuration&lt;/description&gt;
+      &lt;param-name&gt;Config&lt;/param-name&gt;
+      &lt;param-value&gt;C:/PhinmsX/config/Monitor.xml&lt;/param-value&gt;
+    &lt;/init-param&gt;
+  &lt;/servlet&gt;
+</pre>
+<p>
+If you wish to secure <b>PhinmsX</b> with PHIN-MS, add the following to
+the end of <b>web.xml</b> just before the final <b>&lt;/web-app&gt;</b>
+tag.  Note that if you are not running <b>PhinmsX</b> on the PHIN-MS
+server you will also need to create the appropriate Tomcat users and roles.
+<pre>
+
+  &lt;security-constraint&gt;
+    &lt;web-resource-collection&gt;
+      &lt;web-resource-name&gt;The Entire console Application&lt;/web-resource-name&gt; 
+      &lt;url-pattern&gt;*.jsp&lt;/url-pattern&gt;
+      &lt;url-pattern&gt;*.html&lt;/url-pattern&gt; 
+    &lt;/web-resource-collection&gt;
+    &lt;auth-constraint&gt;
+      &lt;role-name&gt;consoleadmin&lt;/role-name&gt; 
+    &lt;/auth-constraint&gt;
+  &lt;/security-constraint&gt;
+  &lt;login-config&gt;
+    &lt;auth-method&gt;BASIC&lt;/auth-method&gt; 
+    &lt;realm-name&gt;PHINMS Realm&lt;/realm-name&gt; 
+  &lt;/login-config&gt;
+  &lt;security-role&gt;
+    &lt;description&gt;A role defined for PHINMS console app.&lt;/description&gt; 
+    &lt;role-name&gt;consoleadmin&lt;/role-name&gt; 
+  &lt;/security-role&gt;
+
+</pre>
+Remember you will need to restart your Tomcat server for updates to take effect.
+<h2><a name="Tags">Common Configuration Tags</a></h2>
+<p>
+Common (shared) configuration tags unique to <b>PhinmsX</b> include:
+<ul>
+<li><b>&lt;phinms&gt;</b> - PHIN-MS install path</li>
+<li><b>&lt;receiverXML&gt;</b> - PHIN-MS receiver's configuration</li>
+<li><b></b> - PHIN-MS sender's configuration</li>
+<li><b>&lt;queueName<&gt;</b> - PHIN-MS queue used for the Receiver/Helper</li>
+<li><b>&lt;fileExtension&gt;</b> - extension added by the Receiver/Helper to incoming files</li>
+<li><b>&lt;tempDirectory&gt;</b> - where Receiver/Helper place temporary files</li>
+<li><b>&lt;helper&gt;</b> - the message "helper" used by the Receiver.  This should 
+minimally include a sub <b>&lt;class&gt;</b> tag identifying the helper to run.</li>
+<li><b>&lt;status&gt;</b> - Receiver's status cache</li>
+<li><b>&lt;queueName&gt;</b> - PHIN-MS queue name used for the Receiver/Helper</li>
+</ul>
+</p>
+<p>
+As mentioned above, tags from merged PHIN-MS configurations may be over
+ridden by including them in the <b>PhinmsX</b> configurations.  They include:
+<ul>
+<li><b>&lt;logContext&gt;</b> - identifier for selecting a log</li>
+<li><b>&lt;logDebug&gt;</b> - true if logging to the console</li>
+<li><b>&lt;logDir&gt;</b> - where logs are written</li>
+<li><b>&lt;logName&gt;</b> - name of the log file</li>
+<li><b>&lt;logLevel&gt;</b> - amount of logging (ALL, DETAIL, INFO, WARN, ERROR, or FATAL),</li>
+<li><b>&lt;maxLogSize&gt;</b> - maximum size for a log file</li>
+<li><b>&lt;logArchive&gt;</b> - <b>false</b> for a single log file, <b>true</b> for 15 files,
+or number of files to archive</li>
+<li><b>&lt;incomingDir&gt;</b> - where Receiver/Helper write payloads</li>
+<li><b>&lt;keyStore&gt;</b> - decryption certificates used by Receiver/Helper</li>
+<li><b>&lt;keyStorePasswd&gt;</b> - entry in &lt;passwordFile&gt; for the &lt;keyStore&gt;</li>
+<li><b>&lt;key&gt;</b> - key to &lt;passwordFile&gt;</li>
+<li><b>&lt;seed&gt;</b> - seed for &lt;key&gt; to &lt;passwordFile&gt;</li>
+<li><b>&lt;passwordFile&gt;</b> - encrypted file of passwords and user ID's</li>
+<li><b>&lt;queueMap&gt;</b> - PHIN-MS mapping of queues names to tables and dB's</li>
+<li><b>&lt;databasePool&gt;&lt;database&gt;</b> - PHIN-MS dB definition and connection information</li>
+</ul>
+</p>
+<h2><a name="Auto">Auto Configuration</a></h2>
+<p>
+As mentioned above, the <b>PhinmsX</b> application (Monitor and Receiver)
+will for the most part automatically configure itself when started.  
+The auto-configuration process follows:
+</p>
+<ol>
+<li>On startup, the application checks if a <b>Config</b> parameter has
+been set in <b>web.xml</b> and if so configures from that.</li>
+<li>If <b>&lt;phinms&gt;</b> is not set
+it checks to see if PHIN-MS is running under <b>&lt;receiverXML&gt;</b>,
+then <b>&lt;senderXML&gt;</b>, and finally on the same web server 
+as <b>PhinmsX</b> and if so sets <b>&lt;phinms&gt;</b>.  This also sets
+the PHIN-MS version if successful.</li>
+<li>If <b>&lt;logDir&gt;</b> is not set, check and/or create 
+<b>phinmsx/log</b> under the current 
+application server, and set it appropriately.
+</li>
+<li>If <b>&lt;logContext&gt;</b> or <b>&lt;logName&gt;</b> is not set use the 
+application's class name (e.g "Monitor" or "Receiver").</li>
+<li>If <b>&lt;logLevel&gt;</b> is not set use "INFO"</li>
+<li>If <b>&lt;maxLogSize&gt;</b> is not set use 250000</li>
+<li>If <b>&lt;logArchive&gt;</b> is not set use 15</li>
+<li>If <b>&lt;status&gt;</b> is not set, set it to 
+<b>&lt;logDir&gt;/status.bin</b></li>
+<li>If <b>&lt;receiverXML&gt;</b> is not set it used <b>&lt;phinms&gt;</b>
+to look for it and set if found. Then it merges configuration with 
+<b>&lt;receiverXML&gt;</b> if possible.  The same is done with 
+<b>&lt;senderXML&gt;</b></li>
+<li>If Tomcat does not have a temp direcortory try to create one</li>
+<li>If <b>&lt;tempDirectory&gt</b> is not set, use the enviroment
+value for <b>CATALINA_TMPDIR</b>, <b>TEMP</b> or <b>TMP</b> and
+failing that create <b>phinmsx/tmp</b> under the current application server.</li></ol>
+<h2><a name="Receiver">Receiver Configuration</a></h2>
+<p>
+In order to use the <b>PhinmsX</b> Receiver you will need to configure 
+PHIN-MS receiver <b>ServiceMap</b>(s).  You will need to define a <b>Service</b>
+and <b>Action</b> pair, set the <b>Type</b> to "Servlet", and fill in the 
+<b>URL</b> to the <b>PhinmsX</b> receiver.  Refer to the PHIN-MS documentation
+for details on how to do this.
+</p>
+<p>
+You may optionally specify a configuration in the <b>&lt;Arguments&gt;</b>
+("conf=") to use for this mapping. That allows you to override general
+settings.  This configuration "merges" in the general receiver configuration.
+The most common use is to specify a unique <b>&lt;incommingDir&gt;</b> to
+route incoming payloads to different folders, or to specify a 
+<b>&lt;helper&gt;</b> to data broker the incoming payload.  For example:
+</p>
+<p>
+<img src="images/servicemap.gif"/>
+</p>
+<p>
+Instruct PHIN-MS sender's to use the service and action settings you defined
+in order to get messages routed through <b>PhinmsX</b>.
+<h2><a name="Helper">Helper Configuration</a></h2>
+<p>
+A "helper" is a Java Class that can be used to customize
+the way the <b>PhinmsX</b> Receiver handles incoming messages.  The
+most common use is to data broker HL7 data, but the helper can be written
+to manipulate any kind of payload.
+</p>
+<p>
+The <b>PhinmsX</b> installation includes a simple 
+helper that returns a formattted HL7 acknowledgement message in the 
+PHIN-MS Application Response to the sender, and a FESI (ECMA 1.0 "javascript")
+helper with an HL7 extension that you can use to write your own
+brokers.  The latter expect a single <b>&lt;script&gt;</b> tag that specifies a
+javascript program that will be run over the data, and may be run standalone
+for debugging and development purposes.
 </p>
 </body>
 </html>

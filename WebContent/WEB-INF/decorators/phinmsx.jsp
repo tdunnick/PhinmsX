@@ -13,13 +13,13 @@
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Foobar is distributed in the hope that it will be useful,
+  PhinmsX is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
 -->
 <html>
 <head>
@@ -33,7 +33,8 @@
     <img src="images/logosmall.gif">
   </div>
   <div class="heading"><dec:getProperty property="page.pagetitle" /></div>
-  <dec:getProperty property="page.pageinfo" />
+  <!--  dec:getProperty property="page.pageinfo" / -->
+  Version <%= Phinms.getXVersion() %>
   <br>
   <div class="button">
     <a href="index.html">Home</a>
@@ -46,7 +47,7 @@
   <dec:body />
   <div id="footer">
      <hr style="clear:both"/>
-     Copyright &copy; 2012 Thomas Dunnick - All Rights Reserved<p>
+     Copyright &copy; 2012-2013 Thomas Dunnick - All Rights Reserved<p>
      Currently running under <%= Phinms.getVersion() %> library. <br>
      For additional information please see
      <a href="https://mywebspace.wisc.edu/tdunnick/web/index.html" target="_blank">

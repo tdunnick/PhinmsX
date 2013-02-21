@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--  
+  Copyright (c) 2012 Thomas Dunnick (https://mywebspace.wisc.edu/tdunnick/web)
+  
+  This file is part of PhinmsX.
+
+  PhinmsX is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  PhinmsX is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<web-app id="WebApp_ID" version="2.4"
+  xmlns="http://java.sun.com/xml/ns/j2ee" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+  <display-name>PhinmsX</display-name>
+  <filter>
+    <filter-name>sitemesh</filter-name>
+    <filter-class>com.opensymphony.sitemesh.webapp.SiteMeshFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>sitemesh</filter-name>
+    <url-pattern>*.html</url-pattern>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>sitemesh</filter-name>    
+    <url-pattern>*.jsp</url-pattern>
+  </filter-mapping>
+  <servlet>
+    <description>PhinmsX Message Receiver</description>
+    <display-name>Receiver</display-name>
+    <servlet-name>Receiver</servlet-name>
+    <servlet-class>tdunnick.phinmsx.controller.Receiver</servlet-class>
+    <!-- un-comment and update param-value for custom configuration
+    <init-param>
+      <description>Receiver configuration</description>
+      <param-name>Config</param-name>
+      <param-value>path_to_Receiver.xml</param-value>
+    </init-param>
+    -->
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Receiver</servlet-name>
+    <url-pattern>/receiver</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Receiver</servlet-name>
+    <url-pattern>/status.html</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <description>PhinmsX Dashboard and Queue Monitor</description>
+    <display-name>Monitor</display-name>
+    <servlet-name>Monitor</servlet-name>
+    <servlet-class>tdunnick.phinmsx.controller.Monitor</servlet-class>
+    <!-- un-comment and update param-value for custom configuration
+    <init-param>
+      <description>Monitor configuration</description>
+      <param-name>Config</param-name>
+      <param-value>path_to_Monitor.xml</param-value>
+    </init-param>
+    -->
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>/queues.html</url-pattern>
+   </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>/dashboard.html</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>*.png</url-pattern>
+  </servlet-mapping>
+   
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+   </welcome-file-list>
+
+  <!--  uncomment for PHIN-MS security 
+	<security-constraint>
+		<web-resource-collection>
+			<web-resource-name>The Entire console Application</web-resource-name>
+			<url-pattern>*.jsp</url-pattern>
+			<url-pattern>*.html</url-pattern>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>consoleadmin</role-name>
+		</auth-constraint>
+	</security-constraint>
+
+	<login-config>
+		<auth-method>BASIC</auth-method>
+		<realm-name>PHINMS Realm</realm-name>
+	</login-config>
+
+	<security-role>
+		<description>
+      A role defined for PHINMS console app.
+  </description>
+		<role-name>consoleadmin</role-name>
+	</security-role>
+   -->
+</web-app>

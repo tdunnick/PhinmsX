@@ -8,19 +8,21 @@
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  Foobar is distributed in the hope that it will be useful,
+ *  PhinmsX is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package tdunnick.phinmsx.minihl7;
 
 import java.util.*;
 import java.text.*;
+
+import tdunnick.phinmsx.util.StrUtil;
 
 /**
  * Minimal implementation of an HL7 message class for "bar" formated
@@ -51,7 +53,7 @@ public class Hl7BarParser implements Hl7Parser
 		  i--;
 		buf.setLength(i);
 	}
-	
+		
 	public String encode (String data)
 	{
 		return encode (data, DELIMS.toCharArray());
@@ -155,7 +157,7 @@ public class Hl7BarParser implements Hl7Parser
 			if (msg.hasDelims (s[i]))
 			{
 				String delims = s[i].substring (3,8);
-				s[i] = s[i].replace (delims.substring(1), delims.substring(0,1));
+				s[i] = StrUtil.replace(s[i], delims.substring(1), delims.substring(0,1));
 				dl = delims.toCharArray();
 			}
 			else if (!s[i].matches(msg.SEGEXP + dl[0] + ".*"))

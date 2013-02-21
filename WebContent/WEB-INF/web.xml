@@ -17,7 +17,10 @@
   You should have received a copy of the GNU General Public License
   along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 -->
-<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:web="http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+<web-app id="WebApp_ID" version="2.4"
+  xmlns="http://java.sun.com/xml/ns/j2ee" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
   <display-name>PhinmsX</display-name>
   <filter>
     <filter-name>sitemesh</filter-name>
@@ -26,41 +29,54 @@
   <filter-mapping>
     <filter-name>sitemesh</filter-name>
     <url-pattern>*.html</url-pattern>
+  </filter-mapping>
+  <filter-mapping>
+    <filter-name>sitemesh</filter-name>    
     <url-pattern>*.jsp</url-pattern>
   </filter-mapping>
   <servlet>
+    <description>PhinmsX Message Receiver</description>
+    <display-name>Receiver</display-name>
     <servlet-name>Receiver</servlet-name>
     <servlet-class>tdunnick.phinmsx.controller.Receiver</servlet-class>
     <init-param>
+      <description>Receiver configuration</description>
       <param-name>Config</param-name>
-      <param-value>C:/usr/workspace/PhinmsX/config/Receiver.xml</param-value>
+      <param-value>C:/usr/workspace/phinmsx/config/Receiver.xml</param-value>
     </init-param>
     <load-on-startup>1</load-on-startup>
   </servlet>
   <servlet-mapping>
     <servlet-name>Receiver</servlet-name>
-    <url-pattern>/status.html</url-pattern>
     <url-pattern>/receiver</url-pattern>
   </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Receiver</servlet-name>
+    <url-pattern>/status.html</url-pattern>
+  </servlet-mapping>
   <servlet>
-    <description></description>
+    <description>PhinmsX Dashboard and Queue Monitor</description>
     <display-name>Monitor</display-name>
     <servlet-name>Monitor</servlet-name>
     <servlet-class>tdunnick.phinmsx.controller.Monitor</servlet-class>
     <init-param>
       <description>Monitor configuration</description>
       <param-name>Config</param-name>
-      <param-value>C:/usr/workspace/PhinmsX/config/Monitor.xml</param-value>
+      <param-value>C:/usr/workspace/phinmsx/config/Monitor.xml</param-value>
     </init-param>
   </servlet>
   <servlet-mapping>
     <servlet-name>Monitor</servlet-name>
     <url-pattern>/queues.html</url-pattern>
-    <url-pattern>/dashboard.html</url-pattern>
-    <url-pattern>/images/barchart.png</url-pattern>
-    <url-pattern>/images/linechart.png</url-pattern>
-     <url-pattern>/images/piechart.png</url-pattern>
    </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>/dashboard.html</url-pattern>
+  </servlet-mapping>
+  <servlet-mapping>
+    <servlet-name>Monitor</servlet-name>
+    <url-pattern>*.png</url-pattern>
+  </servlet-mapping>
   <!-- 
   <servlet>
     <description></description>

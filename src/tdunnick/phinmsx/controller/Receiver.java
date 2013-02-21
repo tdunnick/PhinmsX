@@ -32,6 +32,7 @@ import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.domain.receiver.*;
 import tdunnick.phinmsx.crypt.*;
 import tdunnick.phinmsx.helper.*;
+import tdunnick.phinmsx.util.*;
 
 /**
  * PHINMS custom receiver servlet.  Features cascading configuration and
@@ -115,6 +116,8 @@ public class Receiver extends HttpServlet
 	 */
 	private String getProperty (String name)
 	{
+		if (props == null)
+			return null;
 		return props.getProperty (name);
 	}
 
@@ -672,9 +675,12 @@ public class Receiver extends HttpServlet
 		props = new Props();
 		if (!props.load(conf))
 		{
+			logger = XLog.console();
+			logger.error("Failed initializing " + conf);
 			props = null;
 			return false;
 		}
+		
 		logger = props.getLogger(null, true);
 		// initialize and set up statistics and status bean
 		loadStats ();
@@ -690,6 +696,12 @@ public class Receiver extends HttpServlet
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException
 	{
+		if (props == null)
+		{
+			RequestDispatcher view = req.getRequestDispatcher("conferror.html");
+			view.forward(req, resp);
+			return;
+		}
 		req.setAttribute("status", status);
 		RequestDispatcher view = req.getRequestDispatcher("receiver.jsp");
 		view.forward(req, resp);
@@ -735,18 +747,13 @@ public class Receiver extends HttpServlet
 	public void init(ServletConfig config) throws ServletException
 	{
 		super.init(config);
-		System.out.println("Initializing Hl7Ack Receiver Servlet ...");
-		// System.out.println(Defines.VERSION);
+		System.out.println ("Initializing PhinmsX Receiver");
+		Phinms.setContextPath(config.getServletContext().getRealPath("/"));
 		String configFile = config.getInitParameter("Config");
-		System.out.println("Configuration file=" + configFile);
-		if (configFile == null)
-		{
-			System.err.println("Fatal error: receiver config file not specified");
-			return;
-		}
+		// System.out.println ("Configuration file=" + configFile);
 		if (!initialize(configFile))
 		{
-			System.err.println("Fatal error: error initializing servlet");
+			System.err.println ("Fatal error: error initializing PhinmsX Receiver");
 			return;
 		}
 		else

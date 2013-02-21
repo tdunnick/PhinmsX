@@ -8,19 +8,21 @@
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  Foobar is distributed in the hope that it will be useful,
+ *  PhinmsX is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package tdunnick.phinmsx.domain.receiver;
 import java.sql.*;
 
 import tdunnick.phinmsx.domain.Props;
+import tdunnick.phinmsx.util.StrUtil;
+
 import org.apache.log4j.*;
 
 public class RcvRecord
@@ -108,7 +110,7 @@ public class RcvRecord
 	
 	private String quote (String s)
 	{
-		return "'" + s.replace ("'", "''") + "'";
+		return "'" + StrUtil.replace(s, "'", "''") + "'";
 	}
 	
   public String getService()

@@ -84,10 +84,12 @@ class Hl7BarParserTest extends GroovyTestCase
 	
 	public void testFormat ()
 	{
+		char nl = '\n';
+		char cr = '\r'
 		bar.parse(hl7, msg);
 		String s = bar.format (hl7, null);
 		// println (s);
-		assert msg.replace('\n','\r').equals (s) : "message didn't match : " + s
+		assert msg.replace(nl, cr).equals (s) : "message didn't match : " + s
 	}
 
 	public void testPath()

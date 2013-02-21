@@ -1,7 +1,6 @@
-package test;
-
 import groovy.util.GroovyTestCase;
 import tdunnick.phinmsx.crypt.*;
+import org.apache.log4j.*;
 
 class EncryptorTest extends GroovyTestCase
 {
@@ -9,19 +8,15 @@ class EncryptorTest extends GroovyTestCase
 	String ksname = "test/test.pfx"
 	String kspass = "changeit"
 	String certname = "test/test.der"
-	// String dn = "CN=test.slh.wisc.edu, OU=WSLH, O=UW, L=Madison, ST=Wisconsin, C=US"
-    String dn = "C=US,ST=Wisconsin,L=Madison,O=UW,OU=WSLH,CN=test.slh.wisc.edu"
+	String dn = "CN=test.slh.wisc.edu, OU=WSLH, O=UW, L=Madison, ST=Wisconsin, C=US"
+    String dnB = "C=US,ST=Wisconsin,L=Madison,O=UW,OU=WSLH,CN=test.slh.wisc.edu"
 	String testdata = "The quick grey fox jumped over the lazy dogs"
 	
 	protected void setUp() throws Exception
 	{
-		/*
-		LogConfig dflt = Log.getLogConfig();
-		dflt.setLogLevel(LogConfig.DEBUG)
-		dflt.setLogLocal(true)
-		*/
 		crypt = new Encryptor ();
 	}
+
 	public final void testGetKeyStore ()
 	{
 		def k = crypt.getKeyStore (ksname, kspass)
@@ -35,6 +30,8 @@ class EncryptorTest extends GroovyTestCase
 		assert alias != null : "Failed to get alias for null DN"
 		alias = crypt.getAlias (ks, new StringBuffer (dn))
 		assert alias != null : "Failed to get alias for " + dn
+	    alias = crypt.getAlias (ks, new StringBuffer (dnB))
+	    assert alias != null : "Failed to get alias for " + dnB
 	}
 	
 	public final void testGetPrivateKey ()

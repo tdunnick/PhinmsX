@@ -1,7 +1,9 @@
 package tdunnick.phinmsx.crypt;
 
 import java.io.*;
+import java.util.logging.*;
 import java.security.*;
+
 import javax.crypto.*;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.PBEParameterSpec;
@@ -18,6 +20,7 @@ import tdunnick.phinmsx.util.XmlContent;
 public class Passwords
 {
 	private XmlContent xml;
+	private Logger logger = null;
 	
 	/**
 	 * This is the salt used by CDC
@@ -27,13 +30,33 @@ public class Passwords
 			-57, 115, 33, -116, 126, -56, -18, -103
 	};
 	
+	public Passwords ()
+	{
+		init (null);
+	}
   /**
    * make sure we have bouncy castle loaded before continuing...
    */
-  public Passwords()
+  public Passwords(Logger logger)
+  {
+  	init (logger);
+  }
+  
+  public boolean init (Logger l)
 	{
-    Security.insertProviderAt(new BouncyCastleProvider(), 1);
+  	if (l == null)
+  		l = Logger.getLogger("");
+  	logger = l;
   	xml = new XmlContent ();
+	  if (Security.getProvider ("BC") == null)
+	  {
+		  if (Security.addProvider(new BouncyCastleProvider()) < 0)
+		  {
+		  	logger.severe ("Couldn't add BC security provider");
+		    return false;
+		  }
+	  }
+	  return true;
 	}
 
   /**
@@ -63,6 +86,41 @@ public class Passwords
     {
     	return null;
     }
+  }
+  
+  /**
+   * Get parameter for the password file from a PHINMS configuration
+   * as a three item array with passfile, seed, and key
+   * 
+   * @param config
+   * @return
+   */
+  public String[] passwordValues (XmlContent config)
+  {
+  	String[] v = new String[3];
+	  String root = config.getRoot();
+	  
+  	v[0] = config.getValue(root + ".passwordFile");
+  	File f = new File (v[0]);
+  	if (!f.canRead())
+  		v[0] = config.getValue(root + ".installDir") + v[0];
+	  if ((v[1] = config.getValue(root + ".seed")) == null)
+	  	v[1] = config.getValue(root + ".serviceSeed");
+	  if ((v[2] = config.getValue(root + ".key")) == null)
+	  	v[2] = config.getValue(root + ".serviceKey");
+  	return v;
+  }
+  
+	/**
+	 * Load and returns the XML passwords
+	 * 
+	 * @param config from PHINMS
+	 * @return
+	 */
+  public boolean load (XmlContent config)
+  {
+  	String[] v = passwordValues (config);
+  	return load (v[0], v[1], v[2]);
   }
   
 	/**
@@ -143,6 +201,18 @@ public class Passwords
   	if (xml.load(new String (buf)))
   		return true;
   	return false;
+  }
+	
+	/**
+	 * Stores passwords to disk
+	 * 
+	 * @param config from PHINMS
+	 * @return true if successful
+	 */
+  public boolean save (XmlContent config)
+  {
+  	String[] v = passwordValues (config);
+  	return save (v[0], v[1], v[2]);
   }
 
   /**
@@ -335,17 +405,18 @@ public class Passwords
 		return buf.toString();
 	}
   
-  public static void usage ()
+  public static void usage (String m)
   {
+  	System.err.println (m);
   	System.err.println ("usage: Passwords [<options>] [<file>]\n"
   			+ "-e                  encrypt (decrypt)\n"
   			+ "-c                  only run substitution cypher on password\n"
-  			+ "-k <key>            set password key\n"
-  			+ "-s <seed>           set password seed\n"
-  			+ "-p <password        set password\n"
-  			+ "-o <file>           write output to file (stdout)\n"
+  			+ "-k <key>            set password <key>n"
+  			+ "-s <seed>           set password <seed>\n"
+  			+ "-p <password        set <password>\n"
+  			+ "-o <file>           write output to <file> (stdout)\n"
   			+ "-x <file>           get seed,key,file from XML configuration\n"
-  			+ "<file>              read input from file (stdin)\n");
+  			+ "<file>              read input from <file> (stdin)\n");
   	System.exit(1);
   }
   
@@ -366,8 +437,8 @@ public class Passwords
 				doPBE = false;
 			else if (args[i].equals("-e"))
 				encrypt = true;
-			else if (i + 1 >= args.length)
-				usage();
+			else if ((args[i].charAt(0) == '-') && (i + 1 >= args.length))
+				usage("Argument expected after " + args[i]);
 			else if (args[i].equals("-k"))
 				key = args[++i];
 			else if (args[i].equals("-s"))
@@ -383,12 +454,12 @@ public class Passwords
 				if (args[i].equals("-x"))			
 				{
 				  xml = new XmlContent ();
-				  xml.load(args[++i]);
+				  xml.load(new File (args[++i]));
 				  isseed = true;
-				  String root = xml.getRoot();
-				  passwd = xml.getValue(root + ".seed");
-				  key = xml.getValue(root + ".key");
-			  	args[i] = xml.getValue(root + ".passwordFile");			  	
+				  String[] v = pw.passwordValues(xml);
+				  args[i] = v[0];
+				  passwd = v[1];
+				  key = v[2];
 				  if (encrypt)
 				  	args[--i] = "-o";
 				}
@@ -400,7 +471,7 @@ public class Passwords
 					else if (!args[i].startsWith("-"))
 						inp = new FileInputStream(args[i]);
 					else
-						usage ();
+						usage ("==> " + args[i]);
 				}
 				catch (IOException e)
 				{

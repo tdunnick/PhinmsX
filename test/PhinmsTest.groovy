@@ -17,9 +17,8 @@
  *  along with PhinmsX.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.apache.log4j.Logger
 import groovy.util.GroovyTestCase;
-import tdunnick.phinmsx.util.Phinms;
+import tdunnick.phinmsx.domain.Phinms;
 
 public class PhinmsTest extends GroovyTestCase
 {	
@@ -58,11 +57,11 @@ public class PhinmsTest extends GroovyTestCase
     assert v.equals (expected) : "Expected " + expected + " got " + v;
   }
   
-  void testGetenv ()
+  void testGetEnv ()
   {
-  	v = Phinms.getenv ("PATH");
+  	v = Phinms.getEnv ("PATH");
   	assert v != null : "Couldn't read PATH from environment"
-  	println v
+  	// println v
   	v = Phinms.getenv ("foobar");
   	assert v == null : "Got foobar=" + v
   }

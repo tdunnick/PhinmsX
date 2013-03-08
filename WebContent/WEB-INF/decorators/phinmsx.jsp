@@ -1,7 +1,8 @@
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
     pageEncoding="ISO-8859-1"%>
 <%@ taglib uri="http://www.opensymphony.com/sitemesh/decorator" prefix="dec" %>
-<%@ page import="tdunnick.phinmsx.util.Phinms" %>
+<%@ page import="tdunnick.phinmsx.domain.Phinms" 
+    import="tdunnick.phinmsx.domain.PhinmsX"%>
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--  
   Copyright (c) 2012 Thomas Dunnick (https://mywebspace.wisc.edu/tdunnick/web)
@@ -34,7 +35,7 @@
   </div>
   <div class="heading"><dec:getProperty property="page.pagetitle" /></div>
   <!--  dec:getProperty property="page.pageinfo" / -->
-  Version <%= Phinms.getXVersion() %>
+  Version <%= PhinmsX.getXVersion() %>
   <br>
   <div class="button">
     <a href="index.html">Home</a>

@@ -17,7 +17,6 @@
  *  along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.apache.log4j.Logger
 import groovy.util.GroovyTestCase;
 import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.util.*;
@@ -32,9 +31,9 @@ public class PropsTest extends GroovyTestCase
 	
 	void setUp() throws Exception
 	{
+		// println System.getProperty("java.io.tmpdir")
 		props = new Props ();
 		assert props.load ("config/receiver.xml") : "Failed loading properties"
-		props.setLogger (XLog.getRootLogger(true));
 	}
 	
 	void tearDown() throws Exception

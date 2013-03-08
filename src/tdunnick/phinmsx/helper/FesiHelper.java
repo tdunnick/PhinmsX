@@ -29,8 +29,27 @@ import FESI.jslib.*;
 public class FesiHelper extends SimpleHelper
 {	
   public final static String SCRIPT = "helper.script";
+  private JSGlobalObject global = null;
   
-  /**
+	public FesiHelper()
+	{
+		try
+		{
+			String[] extensions = new String[] 
+			{
+					"FESI.Extensions.BasicIO", 
+					"FESI.Extensions.FileIO",
+					"FESI.Extensions.JavaRegExp"
+			};
+			global = JSUtil.makeEvaluator(extensions);
+		}
+		catch (Exception e)
+		{
+			System.err.println ("Failed initializing: " + e.getMessage());
+		}
+	}
+
+ /**
    * Over ride this method to change objects used by FESI
    * 
    * @param env for helper
@@ -79,13 +98,13 @@ public class FesiHelper extends SimpleHelper
 		String progname = props.getProperty(SCRIPT);
 		if (progname == null)
 		{
-			props.getLogger().error ("Missing script name in configuration");
+			props.getLogger().severe ("Missing script name in configuration");
 			return null;
 		}
 		byte[] data = readFile (progname);
 		if (data == null)
 		{
-			props.getLogger().error ("Cannot read script " + progname);
+			props.getLogger().severe ("Cannot read script " + progname);
 			return null;
 		}
 		return new String (data);
@@ -104,15 +123,9 @@ public class FesiHelper extends SimpleHelper
 	{
 		try
 		{
-			String[] extensions = new String[] 
-			{
-					"FESI.Extensions.BasicIO", "FESI.Extensions.FileIO",
-					"FESI.Extensions.JavaRegExp"
-			};
-			JSGlobalObject global = JSUtil.makeEvaluator(extensions);
 			if (payload != null)
-			  global.setMember(payload.getName(), global.makeObjectWrapper(payload));
-			return global.eval(script); // Basic evaluation
+				global.setMember(payload.getName(), global.makeObjectWrapper(payload));
+			return global.eval(script);
 		}
 		catch (Exception e)
 		{

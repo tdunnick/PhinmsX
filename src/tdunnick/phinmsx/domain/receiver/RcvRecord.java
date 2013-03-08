@@ -23,7 +23,7 @@ import java.sql.*;
 import tdunnick.phinmsx.domain.Props;
 import tdunnick.phinmsx.util.StrUtil;
 
-import org.apache.log4j.*;
+import java.util.logging.*;
 
 public class RcvRecord
 {
@@ -70,16 +70,16 @@ public class RcvRecord
 		String upd =  "insert into " + tablename
 	  + " (recordId, messageId, payloadName, localFileName, service, action, "
 	  + "arguments, fromPartyId, messageRecipient, errorCode, "
-	  + "errorMessage, processingStatus, encryption, receivedTime, "
+	  + "errorMessage, processingStatus, applicationStatus, encryption, receivedTime, "
 	  + "lastUpdateTime, processId) values (" + recordId + ","
 	  + quote (messageId) + "," + quote (payloadName) + "," 
 	  + quote (localFileName) + ","  + quote (service) + "," 
 	  + quote (action) + "," + quote (arguments)  + "," 
 	  + quote (fromPartyId) + "," + quote (messageRecipient) + "," 
 	  + quote (errorCode) + "," + quote (errorMessage) + ","
-	  + quote (processingStatus) + "," + quote (encryption) + "," 
-	  + quote (receivedTime) + "," + quote (lastUpdateTime) + "," 
-	  + quote (processId) + ")";
+	  + quote (processingStatus) + "," + quote (applicationStatus) + ","
+	  + quote (encryption) + "," + quote (receivedTime) + "," 
+	  + quote (lastUpdateTime) + "," + quote (processId) + ")";
 		Statement stmt = props.query(upd);
 		boolean ok = stmt.getUpdateCount() == 1;
 		stmt.close();
@@ -103,13 +103,15 @@ public class RcvRecord
 		}
 		catch (SQLException e)
 		{
-			props.getLogger ().error("Insert failed " + e.getMessage());
+			props.getLogger ().severe ("Insert failed " + e.getMessage());
 		}
 		return ok;
 	}
 	
 	private String quote (String s)
 	{
+		if (s == null)
+			return "null";
 		return "'" + StrUtil.replace(s, "'", "''") + "'";
 	}
 	

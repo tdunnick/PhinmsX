@@ -36,7 +36,9 @@
 <li><a href="#Auto">Auto Configuration</a></li>
 <li><a href="#Receiver">Receiver Configuration</a></li>
 <li><a href="#Helper">Helper Configuration</a></li>
-</ul><h2><a name="Welcome">Welcome</a></h2>
+<li><a href="#Utilities">Utilities</a></li>
+</ul>
+<h2><a name="Welcome">Welcome</a></h2>
 <p>
 You are now using a set of extensions designed to work with the CDC
 <b>PHIN-MS</b> secure messaging system.  These include a monitor with
@@ -223,8 +225,9 @@ Remember you will need to restart your Tomcat server for updates to take effect.
 Common (shared) configuration tags unique to <b>PhinmsX</b> include:
 <ul>
 <li><b>&lt;phinms&gt;</b> - PHIN-MS install path</li>
+<li><b>&lt;phinmsx&gt;</b> - <b>PhinmsX</b> default config, logs, etc</li>
 <li><b>&lt;receiverXML&gt;</b> - PHIN-MS receiver's configuration</li>
-<li><b></b> - PHIN-MS sender's configuration</li>
+<li><b>&lt;senderXML&gt;</b> - PHIN-MS sender's configuration</li>
 <li><b>&lt;queueName<&gt;</b> - PHIN-MS queue used for the Receiver/Helper</li>
 <li><b>&lt;fileExtension&gt;</b> - extension added by the Receiver/Helper to incoming files</li>
 <li><b>&lt;tempDirectory&gt;</b> - where Receiver/Helper place temporary files</li>
@@ -258,24 +261,54 @@ or number of files to archive</li>
 </p>
 <h2><a name="Auto">Auto Configuration</a></h2>
 <p>
-As mentioned above, the <b>PhinmsX</b> application (Monitor and Receiver)
-will for the most part automatically configure itself when started.  
+As mentioned above, the <b>PhinmsX</b> applications (Monitor, Receiver,
+and helpers) will for the most part automatically configure themselves
+when started. By conventions <b>PhinmsX</b> keeps all of it's files and
+folders in <b>phinmsx/</b> on the same level as the Tomcat server it is
+running under. For example, if you are running under PHIN-MS 2.7.0 installed at 
+C:\Program Files\PhinMS, then the <b>PhinmsX</b> directory would be at
+C:\Program Files\PhinMS\2.7.0\phinmsx. The conventional folder layout is...
+<pre>
+
+path_to_tomcat_parent/
+  phinmsx/
+	  bin/
+		  (utilities)
+    logs/
+      Receiver.log
+      Monitor.log
+      (helpers).log
+    config/
+      Receiver.xml
+      Monitor.xml
+      (helpers).xml
+    incoming/
+      (receiver payloads)
+    temp/
+      (temp files)
+
+</pre>						
 The auto-configuration process follows:
 </p>
 <ol>
-<li>On startup, the application checks if a <b>Config</b> parameter has
-been set in <b>web.xml</b> and if so configures from that.</li>
+<li>On startup, the application determines it own <u>name</u> (based on it's
+class).
+<li>For the Monitor and Receiver servlets, it also sets the full path to
+the application <u>context</u> in the file system.  If a <b>Config</b> parameter has
+been set in <b>web.xml</b> it configures from that.  Otherwise it sets
+<b>&lt;phinmsx&gt;</b> to <b><u>context</u>/../../../phinmsx</b>
+and attemps to configure from <b>config/<u>name</u>.xml</b> in that directory.
+Failing that it creates a new (empty) configuration.</li>
 <li>If <b>&lt;phinms&gt;</b> is not set
 it checks to see if PHIN-MS is running under <b>&lt;receiverXML&gt;</b>,
 then <b>&lt;senderXML&gt;</b>, and finally on the same web server 
 as <b>PhinmsX</b> and if so sets <b>&lt;phinms&gt;</b>.  This also sets
 the PHIN-MS version if successful.</li>
 <li>If <b>&lt;logDir&gt;</b> is not set, check and/or create 
-<b>phinmsx/log</b> under the current 
-application server, and set it appropriately.
+<b>logs/</b> under <b>&lt;phinmsx&gt;</b>, and set it appropriately.
 </li>
 <li>If <b>&lt;logContext&gt;</b> or <b>&lt;logName&gt;</b> is not set use the 
-application's class name (e.g "Monitor" or "Receiver").</li>
+application's <u>name</u> (e.g "Monitor" or "Receiver").</li>
 <li>If <b>&lt;logLevel&gt;</b> is not set use "INFO"</li>
 <li>If <b>&lt;maxLogSize&gt;</b> is not set use 250000</li>
 <li>If <b>&lt;logArchive&gt;</b> is not set use 15</li>
@@ -285,10 +318,12 @@ application's class name (e.g "Monitor" or "Receiver").</li>
 to look for it and set if found. Then it merges configuration with 
 <b>&lt;receiverXML&gt;</b> if possible.  The same is done with 
 <b>&lt;senderXML&gt;</b></li>
-<li>If Tomcat does not have a temp direcortory try to create one</li>
-<li>If <b>&lt;tempDirectory&gt</b> is not set, use the enviroment
-value for <b>CATALINA_TMPDIR</b>, <b>TEMP</b> or <b>TMP</b> and
-failing that create <b>phinmsx/tmp</b> under the current application server.</li></ol>
+<li>If the JVM does not have a temp direcortory try to create one.  Note
+this is usually CATALINA_TMPDIR and often does not exist.</li>
+<li>If <b>&lt;tempDirectory&gt</b> is not set, create and use  
+<b>phinmsx/tmp</b> under the current application server.  Since this
+folder may get PHI, it is normally segregated from JVM temp.</li>
+</ol>
 <h2><a name="Receiver">Receiver Configuration</a></h2>
 <p>
 In order to use the <b>PhinmsX</b> Receiver you will need to configure 
@@ -327,5 +362,29 @@ brokers.  The latter expect a single <b>&lt;script&gt;</b> tag that specifies a
 javascript program that will be run over the data, and may be run standalone
 for debugging and development purposes.
 </p>
+<h2><a name="Utilities">Utilities</a></h2>
+<p>
+<b>PhinmsX</b> utilities are Java programs.  In order to use them you need
+to create the appropriate script for your environment and operating system.
+Future releases of this software may include installers to do this for you.
+</p>
+<p>
+<b>tdunnick.phinmsx.crypt.Passwords</b> allows you to read or update a PHIN-MS <b>pbe</b> encoded
+password file.  Unlike the PHIN-MS PBE utility, it will optionally 
+use either PHIN-MS or <b>PhinmsX</b> configurations to perform the requested 
+function.  The usage follows:
+<pre>
+
+Passwords [&lt;options&gt;] [&lt;file&gt;]
+  			-e                  encrypt (decrypt)
+  			-c                  only run substitution cypher on password
+  			-k &lt;key&gt;            set password key
+  			-s &lt;seed&gt;           set password seed
+  			-p &lt;password        set password
+  			-o &lt;file&gt;           write output to file (stdout)
+  			-x &lt;file&gt;           get seed,key,file from XML configuration
+  			&lt;file&gt;              read input from file (stdin)
+
+</pre>
 </body>
 </html>

@@ -62,4 +62,9 @@ public class RcvEnv
   {
   	return props.getProperty (name);
   }
+  
+  public String getPassword (String name)
+  {
+  	return props.getPassword (name);
+  }
 }

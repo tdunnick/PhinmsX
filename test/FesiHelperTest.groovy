@@ -28,7 +28,7 @@ import tdunnick.phinmsx.helper.FesiHelper
  */
 public class FesiHelperTest extends GroovyTestCase
 {
-	FesiHelper fesi = new FesiHelper ();
+  FesiHelper fesi = new FesiHelper ();
   String msg = "" +
   "MSH|^~\\&|AHS-SLI|ST ELIZABETH HOSPITAL LAB^^CLIA|vCMR|WEDSS|200907081020||ORU^R01|67d50db3-c111-4247-8099-9807c8a10098|T|2.3.1\n" +
   "PID|1|000000000420894|X311520:999||Kermit^Andrea^T||19781022080001|F||WN^WHITE/NON-HISPANIC^L|2771 Walnut Street^^Unity^WI^54488|||||M^MARRIED^L\n" +
@@ -68,27 +68,28 @@ function doit ()
   var p = new String(Payload);
   var seg = p.split("\\n");
   for (i = 0; i < seg.length; i++)
-    writeln (seg[i].substr(0,3));
+  {
+    var field = seg[i].split ("|");
+    if (field[0].length != 3)
+      return ("Invalid segment: " + seg[i]);
+    if ((i == 0) && (field[0].substring(0,1) != 'X'))
+      return ("Expected 'X': " + field[0]);
+  }
   return "Found " + seg.length + " segments\\n";
 }
 doit ();
 """
-	
-	void setUp() throws Exception
-	{
-	}
-	
-	void tearDown() throws Exception	{
-	}
-	
-	void testSetResponse()
-	{
-	}
-	
+		
 	void testInterpret ()
 	{
 		byte[] d = msg.bytes;
 		def o = fesi.interpret (testProg, new Payload(d))
-		assert o.toString().equals("Found 28 segments\n"): "Interpreter failed"
+		String s = o.toString()
+		assert s.equals("Found 28 segments\n"): "Interpreter returned " + s
+		d = "THIs should fail".bytes
+		o = fesi.interpret (testProg, new Payload(d))
+        s = o.toString()
+        assert s.equals("Invalid segment: XHIs should fail"): "Interpreter returned " + s
+
 	}
 }

@@ -23,7 +23,7 @@ import java.io.*;
 import java.net.*;
 import java.text.*;
 import java.util.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 
 import javax.servlet.*;
 import javax.servlet.http.*;
@@ -32,7 +32,6 @@ import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.domain.receiver.*;
 import tdunnick.phinmsx.crypt.*;
 import tdunnick.phinmsx.helper.*;
-import tdunnick.phinmsx.util.*;
 
 /**
  * PHINMS custom receiver servlet.  Features cascading configuration and
@@ -88,14 +87,14 @@ public class Receiver extends HttpServlet
 			env.props = new Props();
 			if (!env.props.load(propname, props.getProps()))
 			{
-				logger.error("Failed reading " + propname);
+				logger.severe("Failed reading " + propname);
 				if (props == null)
 					return null;
 				env.props = props;
 			}
 		}
 		// create temp dir if needed
-		String tempdir = env.getProperty (Props.TEMPDIR);
+		String tempdir = env.getProperty (PhinmsX.TEMPDIR);
 		if (tempdir != null)
 		{
 			File t = new File(tempdir);
@@ -155,13 +154,7 @@ public class Receiver extends HttpServlet
 		// today's date formatted for access
 		// need a formatter for numeric values...
 		NumberFormat twoDigits = new DecimalFormat("00");
-		Calendar c = Calendar.getInstance();
-		String now = c.get(Calendar.YEAR) + "-"
-				+ twoDigits.format(c.get(Calendar.MONTH) + 1) + "-"
-				+ twoDigits.format(c.get(Calendar.DAY_OF_MONTH)) + "T"
-				+ twoDigits.format(c.get(Calendar.HOUR_OF_DAY)) + ":"
-				+ twoDigits.format(c.get(Calendar.MINUTE)) + ":"
-				+ twoDigits.format(c.get(Calendar.SECOND));
+		String now = Phinms.fmt_date (null);
 		rec.setLastUpdateTime(now);
 		// the name we gave the payload when we stored it
 		rec.setLocalFileName(getFilePath(env));
@@ -188,8 +181,8 @@ public class Receiver extends HttpServlet
 		// add this record...
 		if (!rec.insert (env.props))
 		{
-    	logger.error("Can't push queue " 
-					+ env.getProperty (Props.QUEUENAME));
+    	logger.severe("Can't push queue " 
+					+ env.getProperty (PhinmsX.QUEUENAME));
 			// + " trying " + dfltIncomingQueue);
 			// queuedb.pushToQueue(dfltIncomingQueue, rec);
 		}
@@ -215,7 +208,7 @@ public class Receiver extends HttpServlet
 	 */
 	private boolean loadStats ()
 	{
-		String fname = getProperty (Props.STATUS);
+		String fname = getProperty (PhinmsX.STATUS);
 		if (fname == null)
 		{
 			logger.info("WARNING: No status cache provided");
@@ -233,7 +226,7 @@ public class Receiver extends HttpServlet
 			logger.info("WARNING: Couldn't read status from " + fname);
 			return false;
 		}
-		logger.debug("Loaded " + stats.size() + " statistics");
+		logger.finest("Loaded " + stats.size() + " statistics");
 		return true;
 	}
 	
@@ -243,7 +236,7 @@ public class Receiver extends HttpServlet
 	 */
 	private boolean saveStats ()
 	{
-		String fname = getProperty (Props.STATUS);
+		String fname = getProperty (PhinmsX.STATUS);
 		if (fname == null)
 			return false;
 		try
@@ -256,7 +249,7 @@ public class Receiver extends HttpServlet
 		}
 		catch (Exception e)
 		{
-			logger.error("Failed to save statistics - " 
+			logger.severe("Failed to save statistics - " 
 					+ e.getLocalizedMessage());
 			return false;
 		}		
@@ -290,7 +283,7 @@ public class Receiver extends HttpServlet
 				env.applicationResponse,
 				env.payload, 
 				env.payloadName); // payload MUST be named
-		logger.debug("Response: " + response.toString());
+		logger.finest("Response: " + response.toString());
 		return (response);
 	}
 
@@ -382,7 +375,7 @@ public class Receiver extends HttpServlet
 		String p = getFileName(env);
 		if (p.length() < 3)
 			p += "_tmp";
-		return File.createTempFile(p, null, new File(env.getProperty(Props.TEMPDIR)));
+		return File.createTempFile(p, null, new File(env.getProperty(PhinmsX.TEMPDIR)));
 	}
 
 	/**
@@ -406,7 +399,7 @@ public class Receiver extends HttpServlet
 	 */
 	private String getIncomingDir(RcvEnv env)
 	{
-		String dir = env.getProperty(Props.INCOMINGDIR);
+		String dir = env.getProperty(Phinms.INCOMINGDIR);
 		if (dir == null)
 			dir = "";
 		return dir;
@@ -429,15 +422,15 @@ public class Receiver extends HttpServlet
 		// strip suffix and extension, add our extension
 		env.filePath = getIncomingDir(env)
 			+ env.fileName.replaceFirst("([.][^.]*){0,1}[.]" + env.fileSuffix,"") 
-			+ env.getProperty (Props.FILEEXTENSION);
+			+ env.getProperty (PhinmsX.FILEEXTENSION);
 		File f = new File (env.filePath);
 		if (!f.exists())
 			return true;
-		logger.debug("File " + env.filePath + " exists, trying full name");
+		logger.finest("File " + env.filePath + " exists, trying full name");
 		// if the above wasn't unique, or the preferred extension didn't match
 		// simply add it
 		env.filePath = getIncomingDir(env) + env.fileName 
-		  + env.getProperty (Props.FILEEXTENSION);
+		  + env.getProperty (PhinmsX.FILEEXTENSION);
 		f = new File (env.filePath);
 		if (!f.exists())
 			return true;
@@ -498,14 +491,14 @@ public class Receiver extends HttpServlet
 			if (!mpp.parse (request.getHeader("Content-Type"), 
 					request.getInputStream()))
 			{
-				logger.error("Parsing multipart fields in request");
+				logger.severe("Parsing multipart fields in request");
 				setResponse(env, "aborted", "bad mime format", "failure", null,	null);
 				return getResponse(env);
 			}
 		}
 		catch (Exception e)
 		{
-			logger.error("Parsing message in messagehandler");
+			logger.severe("Parsing message in messagehandler");
 			setResponse(env, "aborted", "message format exception", "failure",
 					null, null);
 			return getResponse(env);
@@ -527,7 +520,7 @@ public class Receiver extends HttpServlet
 
 		// parse the text parameters
 		// the Message Receiver can send multiple text parameters
-		logger.debug("Checking arguments...");
+		logger.finest("Checking arguments...");
 		rec.setFromPartyId(mpp.getArgument("from"));
 		rec.setService(mpp.getArgument("service"));
 		rec.setAction(mpp.getArgument("action"));
@@ -535,17 +528,16 @@ public class Receiver extends HttpServlet
 		String m = mpp.getArgument("manifest");
 		if (m != null)
 		{
-
 			rec.setArguments(m);
-			logger.debug("manifest= " + m);
+			logger.finest("manifest= " + m);
 			rec.setMessageId(parseManifest(m, "MessageId"));
-			logger.debug("MessageID: " + rec.getMessageId());
+			logger.finest("MessageID: " + rec.getMessageId());
 		}
 		// load this environment
 		env = getEnv(mpp.getArgument("conf"));
 		// Do necessary processing of data here
 		// e.g., Copy file to disk as below
-		logger.debug("Getting payload...");
+		logger.finest("Getting payload...");
 		try
 		{
 			String payload;
@@ -557,7 +549,7 @@ public class Receiver extends HttpServlet
 				// create a path to write the payload to
 				if (!setFilePath(env))
 				{
-					logger.error("Can't set path for " + env.fileName);
+					logger.severe("Can't set path for " + env.fileName);
 					rec.setApplicationStatus("aborted");
 					rec.setProcessingStatus("rejected");
 					setResponse(env, "aborted", "duplicate or unusable file name",
@@ -570,49 +562,46 @@ public class Receiver extends HttpServlet
 				File tmpFile = getTmpFile(env);
 				FileOutputStream fos = new FileOutputStream(tmpFile);
 		
-				PayloadEncryptor crypt = new PayloadEncryptor ();
+				PayloadEncryptor crypt = new PayloadEncryptor (logger);
 
 				// is this encrypted?
 				if (crypt.isEncrypted (payload = new String(data)))
 				{
-					logger.debug("Payload is encrypted");
-					encrypted = "yes";
+					logger.finest("Payload is encrypted");
+					String ks = env.getProperty (Phinms.KEYSTORE);
+					String pw = env.getPassword (Phinms.KEYSTOREPASSWD);
 					// are we prepared to decrypt it?
-					data = crypt.decryptPayload (
-							env.getProperty (Props.KEYSTORE),
-							env.getProperty (Props.KEYSTOREPASSWD),
-							env.getProperty(Props.KEYSTOREPASSWD),
-							payload);
+					data = crypt.decryptPayload (ks, pw, pw, payload);
 					// successfully decrypted?
 					if ((data == null) || (data.length == 0))
 					{
 						setResponse(env, "abnormal", "can not decrypt payload",
 								"warning", null, null);
-						logger.error("Decryption failed " + (data == null ? 
-								"returned buffer null" : "returned buffer empty"));
-						logger.error("Unable to decrypt payload"
-								+ (crypt == null ? " null decryptor" : " failed keystore "
-										+ env.getProperty (Props.KEYSTORE)));
+						logger.severe("Decryption failed " + (data == null ? 
+								"buffer null" : "buffer empty"));
+						// we'll save the encrypted payload an note in queue
+						data = payload.getBytes();
+						encrypted = "yes";
 					}
 				}
 				else
 				// wasn't encrypted
 				{
-					logger.debug ("Payload is not encrypted");
+					logger.finest ("Payload is not encrypted");
 				}
 				fos.write(data);
 				fos.flush();
 				fos.close();
 				if (!tmpFile.renameTo(outFile))
 				{
-					logger.error("Unable to rename " + tmpFile.getPath() + " to "
+					logger.severe("Unable to rename " + tmpFile.getPath() + " to "
 							+ outFile.getPath());
 				}
 				// run the helper if one exists, in which case it sets the response
-				String helper = env.getProperty(Props.HELPER);
+				String helper = env.getProperty(PhinmsX.HELPER);
 				if (helper != null)
 				{
-					logger.debug ("running helper " + helper);
+					logger.finest ("running helper " + helper);
 					try
 					{
 						Class c = Class.forName(helper);
@@ -621,7 +610,7 @@ public class Receiver extends HttpServlet
 					}
 					catch (Exception e)
 					{
-					  logger.error(helper + " exception " + e.getMessage());
+					  logger.severe(helper + " exception " + e.getMessage());
 						setResponse(env, "aborted", "application processing error", 
 								e.getMessage(), null, null);
 					}
@@ -630,7 +619,7 @@ public class Receiver extends HttpServlet
 		}
 		catch (Exception e)
 		{
-			logger.error("Internal error processing payload " + e.getMessage());
+			logger.severe("Internal error processing payload " + e.getMessage());
 			rec.setApplicationStatus("aborted");
 			rec.setProcessingStatus("rejected");
 			setResponse(env, "aborted", "internal failure decoding payload",
@@ -675,13 +664,13 @@ public class Receiver extends HttpServlet
 		props = new Props();
 		if (!props.load(conf))
 		{
-			logger = XLog.console();
-			logger.error("Failed initializing " + conf);
+			logger = Logger.getLogger("");
+			logger.severe("Failed initializing " + conf);
 			props = null;
 			return false;
 		}
 		
-		logger = props.getLogger(null, true);
+		logger = props.getLogger ();
 		// initialize and set up statistics and status bean
 		loadStats ();
 		status = RcvStatus.getStatus ();
@@ -714,25 +703,21 @@ public class Receiver extends HttpServlet
 				+ " processing **********************");
 		// process the request
 
-		try
+		// call processRequest to do the dirty work
+		StringBuffer response = processRequest(req);
+		if (response == null)
 		{
-			// call processRequest to do the dirty work
-			StringBuffer response = processRequest(req);
-			if (response == null)
-			{
-				logger.error("Failed to process POST request - no response");
-			}
-			else
-			{
-				PrintWriter out = resp.getWriter();
-				out.println(response.toString());
-				out.close();
-			}
+			logger.severe("Failed to process POST request - no response");
+		}
+		else try
+		{
+			PrintWriter out = resp.getWriter();
+			out.println(response.toString());
+			out.close();		
 		}
 		catch (Exception e)
 		{
-			logger.error("Post exception " + e.getMessage());
-			e.printStackTrace();
+			logger.log (Level.SEVERE, "Post exception " + e.getMessage(), e);
 		}
 		logger.info("******************* Completed message "
 				+ "processing ********************");
@@ -741,19 +726,22 @@ public class Receiver extends HttpServlet
 	public void destroy()
 	{
 		saveStats ();
+		logger.info("Exiting...");
+		props.close ();
 		super.destroy();
 	}
 
 	public void init(ServletConfig config) throws ServletException
 	{
 		super.init(config);
-		System.out.println ("Initializing PhinmsX Receiver");
-		Phinms.setContextPath(config.getServletContext().getRealPath("/"));
+		logger = Logger.getLogger ("");
+		logger.info ("Initializing PhinmsX Receiver");
+		PhinmsX.setContextPath(config.getServletContext().getRealPath("/"));
 		String configFile = config.getInitParameter("Config");
-		// System.out.println ("Configuration file=" + configFile);
+		// logger.fine ("Configuration file=" + configFile);
 		if (!initialize(configFile))
 		{
-			System.err.println ("Fatal error: error initializing PhinmsX Receiver");
+			logger.severe ("Fatal error: error initializing PhinmsX Receiver");
 			return;
 		}
 		else

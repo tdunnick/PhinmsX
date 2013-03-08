@@ -2,6 +2,7 @@
 
 <project name="PhinmsX" default="phinmsx" basedir=".">
 	<property name="name" value="PhinmsX" />
+	<property name="basedir" value="." />
 	<property name="src" value="${basedir}/src" />
 	<property name="test" value="${basedir}/test" />
 	<property name="build" value="${basedir}/build/classes" />
@@ -10,10 +11,6 @@
 	<property name="tomcat" value="C:/Program Files/PhinMS/2.7.0/tomcat-5.0.19/common/lib" />
 	<property name="PhinmsX" value="${basedir}/WebContent/WEB-INF/lib" />
 	<property name="plugins" value="C:/eclipse/plugins" />
-	<!--
-	<property name="javahome" value="C:/Program Files/PhinMS/2.7.0/jdk/win32" />
-	<property name="javalib" value="${javahome}/jre/lib" />
-	-->
 	<property name="junitlib" value="${plugins}/org.junit_3.8.2.v20090203-1005" />
 	<property name="groovylib" value="${plugins}/org.codehaus.groovy_1.5.7.20081120_2330" />
 
@@ -77,9 +74,6 @@
 	<target name="gcompile" depends="init">
 		<groovyc srcdir="${test}" destdir="${tbuild}">
 			<classpath>
-				<!--
-				<fileset dir="${javalib}" includes="**/*.jar" />
-				-->
 				<fileset dir="${tomcat}" includes="**/*.jar" />
 				<fileset dir="${junitlib}" includes="**/*.jar" />
 				<fileset dir="${groovylib}" includes="**/*.jar" />
@@ -105,16 +99,34 @@
 			<test name="AllTests" />
 		</junit>
 	</target>
+	
+	<path id="phinmsx.classpath">
+	  <fileset dir="${PhinmsX}" includes="**/*.jar" />
+	</path>
 
+	<pathconvert property="manifest.classpath" 
+		pathsep=" " refid="phinmsx.classpath" >
+		<map from="${PhinmsX}/" to="WEB-INF/lib/" />
+	</pathconvert>
+		
+	<!-- the jar -->
+	<target name="archive" >
+    <delete file="${basedir}/${phinmsxjar}" failonerror="false" />
+    <jar jarfile="${basedir}/${phinmsxjar}">
+      <fileset dir="${build}" 
+        excludes="/*/tmp/**" 
+      />
+    	<!--
+    	<manifest>
+         <attribute name="Class-Path" value="${manifest.classpath}"/>
+      </manifest>
+       -->
+    </jar>
+	</target>
+	
 	<!-- the distribution -->
-	<target name="dist">
-		<delete file="${basedir}/${phinmsxjar}" failonerror="false" />
-    <delete file="${basedir}/${phinmsxwar}" failonerror="false" />
-		<jar jarfile="${basedir}/${phinmsxjar}">
-			<fileset dir="${build}" 
-				excludes="/*/tmp/**" 
-			/>
-		</jar>
+	<target name="dist" depends="archive">
+    <delete file="${basedir}/${phinmsxwar}" failonerror="false" />		
 		<war warfile="${basedir}/${phinmsxwar}">
 			<fileset dir="${basedir}\WebContent" excludes="**/web.xml" />
 			<zipfileset dir="${basedir}" includes="${phinmsxjar}"

@@ -21,11 +21,9 @@ package tdunnick.phinmsx.model
 ;
 
 import java.io.*;
-import java.text.*;
 import java.util.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import java.sql.*;
-import java.sql.Date;
 import javax.servlet.http.*;
 
 import tdunnick.phinmsx.domain.*;
@@ -57,9 +55,6 @@ public class MonitorModel
 	
 	private final static long MS = 24*60*60*1000;
 	
-	private final SimpleDateFormat dfmt = 				// PHIN-MS data format
-		new SimpleDateFormat ("yyyy-MM-dd'T'HH:mm:ss");
-
 	/*
 	 * fields we show in the queue monitor table
 	 */
@@ -105,7 +100,7 @@ public class MonitorModel
 	{
 		boolean ok;
 		this.props = props;
-		logger = props.getLogger(null, false);
+		logger = props.getLogger ();
 		ok = refresh ();
 		return (ok);
 	}
@@ -169,7 +164,9 @@ public class MonitorModel
 		else
 			c = dash.getPiechart();
     if (c == null)
+    {
     	return (new byte[0]);
+    }
 		return (byte[]) c[0];	
 	}
 	
@@ -204,7 +201,10 @@ public class MonitorModel
 		if (table == null)
 			table = getTransportName ();
 		if (table == null)
+		{
+			logger.severe("No transport table specified or found");
 			return false;
+		}
     dash.setSender(table.equals(getTransportName()));
 		int days = getInt((String) session.getAttribute("days"));
 		long ends = getDate((String) session.getAttribute("ends"));
@@ -250,8 +250,8 @@ public class MonitorModel
 			StringBuffer buf = new StringBuffer();
 			long interval = days * MS;
 			long start = ends - interval;
-			addConstraint (buf, dateName + " > ", dfmt.format (new Date(start)));
-			addConstraint (buf, dateName + " <= ", dfmt.format(new Date(ends)));
+			addConstraint (buf, dateName + " > ", Phinms.fmt_date (start));
+			addConstraint (buf, dateName + " <= ", Phinms.fmt_date (ends));
 			Statement stmt = props.query ("SELECT " + constraintName + "," 
 					+ dateName + " FROM " + table	+ buf.toString() 
 					+ " ORDER BY " + dateName + " ASC", 0);
@@ -276,7 +276,7 @@ public class MonitorModel
 		  	try
 		  	{
 			  	String s = res.getString(1);
-			  	long t = dfmt.parse(res.getString(2)).getTime();
+			  	long t = Phinms.get_time (res.getString(2));
 			  	if (t > start)
 			  	{
 			  		if (min > n) min = n;
@@ -292,7 +292,7 @@ public class MonitorModel
 		  	}
 		  	catch (Exception e)
 		  	{
-		  		logger.error("result fetch " + e.getMessage());
+		  		logger.severe("result fetch exception - " + e.getMessage());
 		  	}
 		  }
   		if (min > n) min = n;
@@ -307,7 +307,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.error("ERROR: result set - " + e.getMessage());
+			logger.severe("result set exception - " + e.getMessage());
 			return false;
 		}
 		return true;
@@ -349,7 +349,10 @@ public class MonitorModel
 		String constraintName = "routeInfo=";
 		String t = mon.getTable();
 		if (t == null)
+		{
+			logger.severe ("Can't get data - No table set");
 			return false;
+		}
 		if (t.equals(getTransportName()))
 			mon.setRowfields (new ArrayList (Arrays.asList(routeFields)));
 		else
@@ -366,9 +369,9 @@ public class MonitorModel
 			if (top > 0)
 			  addConstraint (buf, "recordId<=", Integer.toString (top));
 			addConstraint (buf, constraintName, mon.getConstraint());
-			logger.debug("constraint: " + buf.toString());
-			Statement stmt = props.query ("SELECT * FROM " + mon.getTable()
-					+ buf.toString() + " ORDER BY recordId DESC", 10);
+			logger.finest("constraint: " + buf.toString());
+			t = "SELECT * FROM " + t + buf.toString() + " ORDER BY recordId DESC";
+			Statement stmt = props.query (t, 10);
 			if (stmt == null)
 				return false;
 		  ResultSet res = stmt.getResultSet();
@@ -379,7 +382,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.error("ERROR: result set - " + e.getMessage());
+			logger.severe("result set exception for " + t + " - " + e.getMessage());
 			return (false);
 		}
 	  return true;
@@ -390,53 +393,67 @@ public class MonitorModel
    * @param mon bean to update
    * @param res result set from JDBC
    * @return true if successful
-   * @throws SQLException
    */
   private boolean setMonitorRows (MonitorData mon, ResultSet res)
-  throws SQLException
   {
 		ArrayList fields = mon.getFields();
 		ArrayList rowfields = mon.getRowfields();
 	  ArrayList rows = new ArrayList ();
 	  ArrayList rowClass = new ArrayList ();
-	  while (res.next ())
-		{
-	  	int recordId = 0;
-	  	String status = null;
-	  	ArrayList values = new ArrayList();
-			ArrayList record = new ArrayList();
-			for (int i = 0; i < fields.size(); i++)
+	  int rownum = 0;
+	  String colname = "";
+	  try
+	  {
+		  while (res.next ())
 			{
-				String s = (String) fields.get(i);
-				String v = res.getString(s);
-				record.add(v);
-				if (v != null) 
+		  	int recordId = 0;
+		  	String status = null;
+		  	ArrayList values = new ArrayList();
+				ArrayList record = new ArrayList();
+				rownum++;
+				for (int i = 0; i < fields.size(); i++)
+				{
+					colname = (String) fields.get(i);
+					Object o = res.getObject(colname);
+					String v = null;
+					// skip null or binary data
+					if ((o != null)	&& !o.getClass().getName().equals("[B"))
+						v = o.toString();
+					record.add(v);
+					if (v != null) 
 					{
-					if ((status == null) && v.indexOf ("attempted") >= 0)
-						status = "attempted";
+						if ((status == null) && v.indexOf ("attempted") >= 0)
+							status = "attempted";
 						else if (v.indexOf ("fail") >= 0)
-						status = "fail";
+							status = "fail";
 					}
-				for (int j = 0; j < rowfields.size(); j++)
-				{
-					if (s.equals((String) rowfields.get(j)))
-						values.add(v);
+					for (int j = 0; j < rowfields.size(); j++)
+					{
+						if (colname.equalsIgnoreCase ((String) rowfields.get(j)))
+							values.add(v);
+					}
+					if (colname.equalsIgnoreCase("recordid"))
+					{
+						recordId = Integer.parseInt(v);
+					}
 				}
-				if (s.equalsIgnoreCase("recordid"))
-				{
-					recordId = Integer.parseInt(v);
-				}
+			  if (mon.getRecordId() == 0)
+			  	mon.setRecordId(recordId);
+			  if (mon.getRecordId() == recordId)
+			  	mon.setRecord(record);
+				rows.add(values);
+				if (status == null)
+					status = "ok";
+				rowClass.add(status);
 			}
-		  if (mon.getRecordId() == 0)
-		  	mon.setRecordId(recordId);
-		  if (mon.getRecordId() == recordId)
-		  	mon.setRecord(record);
-			rows.add(values);
-			if (status == null)
-				status = "ok";
-			rowClass.add(status);
-		}
-	  
+	  }
+	  catch (SQLException e)
+	  {
+	  	logger.severe("failed setting monitor row " + rownum + " " + colname 
+	  			+ " - " + e.getLocalizedMessage());
+	  	return false;
+	  }
+	  logger.finest("set " + rows.size() + " monitor queue rows");
 	  mon.setRows(rows);
 	  mon.setRowClass(rowClass);
   	return true;
@@ -459,15 +476,16 @@ public class MonitorModel
 			return true;
 		StringBuffer buf = new StringBuffer();		
 		addConstraint (buf, "recordId>=", Integer.toString (top));
-		String constraintName = "routeInfo=";
+		String s = "routeInfo=";
 		if (!mon.getTable().equals(getTransportName()))
-			constraintName = "fromPartyId=";
-		addConstraint (buf, constraintName, mon.getConstraint());
+			s = "fromPartyId=";
+		addConstraint (buf, s, mon.getConstraint());
 		addConstraint (buf, "fromPartyId=", null);
 		try
 		{
-	  	Statement stmt = props.query ("SELECT recordId FROM " 
-	    		+ mon.getTable() + buf.toString() + " ORDER by recordId ASC", 10);
+			s = "SELECT recordId FROM " + mon.getTable() + buf.toString() 
+			  + " ORDER by recordId ASC";
+	  	Statement stmt = props.query (s, 10);
 			if (stmt == null)
 				return true;
 		  ResultSet res = stmt.getResultSet();
@@ -478,10 +496,10 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.error("ERROR: result set - " + e.getMessage());
+			logger.severe("result set exception for " + s + " - " + e.getMessage());
 			return false;
 		}
-		logger.debug("prev=" + prev);
+		logger.finest("prev=" + prev);
 		if (prev > top)
 		  mon.setPrev(prev);
 		return true;
@@ -499,7 +517,9 @@ public class MonitorModel
 	private boolean addConstraint (StringBuffer buf, String expr, String constraint)
 	{
 		if ((constraint == null) || (constraint.length() == 0))
+		{
 			return false;
+		}
 		if (buf.length() == 0)
 			buf.append(" WHERE " + expr);
 		else
@@ -525,7 +545,7 @@ public class MonitorModel
 	  for (int i = 1; i <= m.getColumnCount(); i++)
 	  {
 	  	if (m.isSearchable(i)) names.add (m.getColumnName(i));
-	  	else logger.debug("skipping " + m.getColumnName(i));
+	  	else logger.finest("skipping " + m.getColumnName(i));
 	  }
 	  return names;
 	}
@@ -540,7 +560,7 @@ public class MonitorModel
 	{
 		if (!openConnection () || !setTables ())
 		{
-			logger.error("Failed initializing Monitor tables");
+			logger.severe("Failed initializing Monitor tables");
 			return false;
 		}
 		return true;
@@ -553,7 +573,7 @@ public class MonitorModel
 	 */
 	private ArrayList getWorkers ()
 	{
-		return getXMLprops (props.getProperty (Props.QUEUEMAP), 
+		return getXMLprops (props.getProperty (Phinms.QUEUEMAP), 
 				"QueueMap.workerQueue", "tableName");
 	}
 	
@@ -564,17 +584,30 @@ public class MonitorModel
 	 */
 	private Object[] getTransport ()
 	{
-		String s = props.getProperty (Props.SENDERXML);
+		String s = props.getProperty (PhinmsX.SENDERXML);
 		if (s == null)
 			s = Phinms.getPath("config") + "/sender/sender.xml";
 		XmlContent sxml = getXML (s);
 		if (sxml == null)
+		{
+			logger.severe("Couldn't load " + s);
 			return null;
+		}
 		Object[] transport = new Object[2];
 		String dir = sxml.getValue("Sender.installDir");
+		// 2.7.0
+		s = sxml.getValue("Sender.messageTable");
+		// 2.8.x
+		if (s == null)
+			s = sxml.getAttribute("Sender.transportDatabasePool.transportDatabase.transportQueue", "tableName");
+		if (s == null)
+		{
+			logger.severe ("Can't find transport table name");
+			return null;
+		}
+		transport[0] = s;
 		transport[1] = getXMLprops (dir + sxml.getValue("Sender.routeMap"),	
 				"RouteMap.Route", "Name");
-		transport[0] = sxml.getValue("Sender.messageTable");
 		return (transport);
 	}
 	
@@ -618,10 +651,10 @@ public class MonitorModel
 	private ArrayList getParties (String table)
 	{
 		ArrayList parties = new ArrayList();
+		String s = "SELECT distinct (fromPartyId) from " + table;
 		try
 		{
-			Statement stmt = props.query("SELECT distinct (fromPartyId) from " 
-				+ table, 0);
+			Statement stmt = props.query(s, 0);
 			ResultSet res = stmt.getResultSet();
 			while (res.next ())
 			{
@@ -632,7 +665,7 @@ public class MonitorModel
 		}
 		catch (SQLException e)
 		{
-			logger.error("Error reading party ID list");
+			logger.severe("Failed " + s + " - " + e.getMessage());
 		}
 		return parties;
 	}
@@ -652,13 +685,13 @@ public class MonitorModel
 			return null;
 		if ((prefix == null) || (suffix == null))
 		{
-			logger.error("null prefix or suffix for " + xname);
+			logger.severe("null prefix or suffix for " + xname);
 		  return null;
 		}
 		ArrayList l = new ArrayList ();
 		for (int i = 0; i < x.getTagCount(prefix); i++)
 			l.add (x.getValue(prefix + "[" + i + "]." + suffix));
-		logger.debug("found " + l.size() + " entries for " + prefix + " in " + xname);
+		logger.finest("found " + l.size() + " entries for " + prefix + " in " + xname);
 		return l;
 	}
 
@@ -672,18 +705,18 @@ public class MonitorModel
 	{
 		if (name == null)
 		{
-			logger.error("null XML name");
+			logger.severe("null XML name");
 			return null;
 		}
 		File f = new File (name);
 		if (!f.canRead())
 		{
-			logger.error("can't read " + name);
+			logger.severe("can't read " + name);
 			return null;
 		}
 		XmlContent x = new XmlContent ();
 		if (!x.load(f))
-			logger.error("failed parsing " + name);
+			logger.severe("failed parsing " + name);
 		return x;
 	}
 	
@@ -717,17 +750,16 @@ public class MonitorModel
 	 */
 	private long getDate (String value)
 	{
-		java.util.Date d;
-		try
+		java.util.Date d = new java.util.Date();
+;
+		if ((value != null) && value.matches("[0-9]+"))	try
 		{
 			d = new java.util.Date (Long.parseLong(value));
 		}
 		catch (Exception e)
 		{
-			logger.error("date value: " + value);
-			d = new java.util.Date();
+			logger.severe ("date value: " + value);
 		}
-		logger.debug("Date: " + d.toString());
 		return d.getTime();
 	}
 	

@@ -20,7 +20,7 @@ package tdunnick.phinmsx.crypt;
 
 import java.util.*;
 import java.io.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import javax.naming.*;
 import javax.naming.directory.*;
 import java.security.*;
@@ -36,6 +36,7 @@ public class Encryptor
 {
 	public final static String RSA_TRANSFORM = "RSA/ECB/PKCS1PADDING";
 	public final static String DES_TRANSFORM = "DESede/CBC/PKCS5Padding";
+	private String[] transform = { RSA_TRANSFORM, DES_TRANSFORM };
 	Logger logger;
 		
 	/**
@@ -51,26 +52,54 @@ public class Encryptor
 		init (logger);
 	}
 
-	private void init (Logger l)
+	public boolean init (Logger l)
 	{
 	  if (l == null)
-	  	logger = XLog.console ();
+	  	logger = Logger.getLogger("");
 	  else
 	  	logger = l;
 	  if (Security.getProvider ("BC") == null)
 	  {
 		  if (Security.addProvider(new BouncyCastleProvider()) < 0)
-		  	logger.error("Couldn't add BC security provider");
+		  {
+		  	logger.severe ("Couldn't add BC security provider");
+		  	return false;
+		  }
 	  }
+	  return true;
 	}
 	
+	/**
+	 * get the key algorithm for this transform
+	 * 
+	 * @param transform
+	 * @return
+	 */
+	private String getAlgorithm (String transform)
+	{
+		int i = transform.indexOf('/');
+		if (i < 0)
+			return transform;
+		return transform.substring(0, i);
+	}
+
+	/**
+	 * get the transform for this key
+	 * @param key
+	 * @return
+	 */
 	private String getTransform (Key key)
 	{
-		logger.debug("Algorithm: " + key.getAlgorithm());
-		if (key.getAlgorithm().equals("RSA"))
-			return RSA_TRANSFORM;
+		logger.finest("Algorithm: " + key.getAlgorithm());
+		for (int i = 0; i < transform.length; i++)
+		{
+			if (transform[i].startsWith (key.getAlgorithm()))
+				return transform[i];
+		}
+		logger.severe ("No matching transform found - assuming " + DES_TRANSFORM);
 		return DES_TRANSFORM;
 	}
+	
   /** 
    * Generate a secret TripleDES encryption/decryption key 
    * 
@@ -80,12 +109,12 @@ public class Encryptor
 	{
 		try
 		{
-			KeyGenerator keygen = KeyGenerator.getInstance("DESede");
+			KeyGenerator keygen = KeyGenerator.getInstance (getAlgorithm (DES_TRANSFORM));
 			return keygen.generateKey();
 		}
-		catch (NoSuchAlgorithmException e)
+		catch (Exception e)
 		{
-			logger.error("Can't generate key for " + DES_TRANSFORM + ": " + e.getMessage());
+			logger.severe("Can't generate key for " + DES_TRANSFORM + ": " + e.getMessage());
 		}
 		return null;
 	}
@@ -101,7 +130,7 @@ public class Encryptor
   	}
   	catch (IOException e)
   	{
-  		logger.error ("Failed loading " + f.getAbsolutePath() + ": " 
+  		logger.severe ("Failed loading " + f.getAbsolutePath() + ": " 
   				+ e.getMessage());
   		return null;
   	}
@@ -114,7 +143,7 @@ public class Encryptor
 		{
 			String s = e.getMessage();
 			if (!s.equals("Invalid keystore format"))
-			  logger.error ("Failed loading " + f.getAbsolutePath() + ": " + s);
+			  logger.severe ("Failed loading " + f.getAbsolutePath() + ": " + s);
 			ks = null;
 		}
 		try
@@ -123,7 +152,7 @@ public class Encryptor
 		}
 		catch (IOException e)
 		{
-  		logger.error ("Failed closeing " + f.getAbsolutePath() + ": " 
+  		logger.severe ("Failed closeing " + f.getAbsolutePath() + ": " 
   				+ e.getMessage());			
 		}
 		return ks;
@@ -140,16 +169,16 @@ public class Encryptor
 	 */
   public KeyStore getKeyStore (String path, String passwd)
 	{
-  	logger.debug ("getting keystore..");
+  	logger.finest ("getting keystore..");
 		if ((path == null) || (passwd == null))
 		{
-			logger.debug("path or password is null");
+			logger.finest("path or password is null");
 			return null;
 		}
 		File f = new File(path);
 		if (!f.canRead())
 		{
-			logger.error("Can't open keystore " + path + " for read");
+			logger.severe("Can't open keystore " + path + " for read");
 			return null;
 		}
 		KeyStore ks = loadKeyStore(f, passwd, "JKS");
@@ -216,12 +245,12 @@ public class Encryptor
 				}
 				if (dnequals (pdn, cert.getSubjectDN().getName()))
 					return alias;
-				logger.debug("Skipping " + cert.getSubjectDN().getName());
+				logger.finest("Skipping " + cert.getSubjectDN().getName());
 			}
 		}
 		catch (KeyStoreException e)
 		{
-			logger.error("Can't find " + dn + ": " + e.getMessage());
+			logger.severe("Can't find " + dn + ": " + e.getMessage());
 		}
 		return null;
 	}
@@ -263,7 +292,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't find " + dn + " in " + path + ": "
+			logger.severe("Can't find " + dn + " in " + path + ": "
 					+ e.getMessage());
 		}
 		return null;
@@ -301,7 +330,7 @@ public class Encryptor
 					cert = attr.get();
 				if ((cert == null) || !cert.getClass().equals(byte[].class))
 				{
-					logger.error("LDAP " + url + " has no certificate for " + cn);
+					logger.severe("LDAP " + url + " has no certificate for " + cn);
 					return null;					
 				}
 			  return getPublicKey (new ByteArrayInputStream ((byte[]) cert), dn);	
@@ -309,7 +338,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't get key from " + url + " for " + cn + ": " + e.getMessage());
+			logger.severe("Can't get key from " + url + " for " + cn + ": " + e.getMessage());
 		}
 		return null;
 	}
@@ -336,7 +365,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't find " + dn + " in " + path + ": "
+			logger.severe("Can't find " + dn + " in " + path + ": "
 					+ e.getMessage());
 			return null;
 		}
@@ -359,7 +388,7 @@ public class Encryptor
   	}
 		catch (Exception e)
 		{
-			logger.error("Can't get key from " + path + ": " + e.getMessage());
+			logger.severe("Can't get key from " + path + ": " + e.getMessage());
 			return null;
 		} 	
   }
@@ -392,7 +421,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't get public key: " + e.getMessage());
+			logger.severe("Can't get public key: " + e.getMessage());
 			return null;
 		}
 	}
@@ -414,7 +443,7 @@ public class Encryptor
   	try
   	{
   		Cipher cipher = Cipher.getInstance(getTransform (key));
-  		logger.debug("cipher algorithm is: " + cipher.getAlgorithm());
+  		logger.finest("cipher algorithm is: " + cipher.getAlgorithm());
 			// triple DES CBC block uses 8 byte initial vector
 			if (key.getAlgorithm().startsWith("DESede"))
 			{
@@ -428,7 +457,7 @@ public class Encryptor
   	}
   	catch (Exception e)
   	{
-  		logger.error("Can't get cipher for " + key.getAlgorithm() + ": " + e.getMessage(), e);
+  		logger.severe("Can't get cipher for " + key.getAlgorithm() + ": " + e.getMessage());
   	}
   	return null;
   }
@@ -457,7 +486,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't encrypt with " + getTransform(key) + ": " + e.getMessage());
+			logger.severe("Can't encrypt with " + getTransform(key) + ": " + e.getMessage());
 		}
 		return null;
 	}
@@ -500,7 +529,7 @@ public class Encryptor
 		}
 		catch (Exception e)
 		{
-			logger.error("Can't decrypt with " + getTransform (key),e);
+			logger.severe("Can't decrypt with " + getTransform (key) + ": " + e.getMessage());
 		}
 		return null;
 	}
@@ -513,11 +542,11 @@ public class Encryptor
    * @param keymethod of key being decrypted
    * @return
    */
-  public SecretKey decryptKey (String data, Key key, String keymethod)
+  public SecretKey decryptKey (String data, Key key, String transform)
   {
   	byte[] b = decrypt (data, key);
   	if (b == null)
   		return null;
-  	return new SecretKeySpec (b, keymethod);
+  	return new SecretKeySpec (b, getAlgorithm (transform));
   }
 }

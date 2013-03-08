@@ -49,26 +49,26 @@
     	  </c:forEach>
         </tr>
         <c:forEach items="${m.rows}" var="r" varStatus="rs">
-        <tr class="${m.rowClass[rs.index]}"
-          <c:if test="${m.recordId == r[0]}">
-            style="font-weight:bold;"
-          </c:if>
-        >
+          <tr class="${m.rowClass[rs.index]}"
+            <c:if test="${m.recordId == r[0]}">
+              style="font-weight:bold;"
+            </c:if>
+          >
           <c:forEach items="${r}" var="n" varStatus="s">
-          <td>
-             <c:if test="${empty n}">
-               &nbsp;
-             </c:if>
-             <c:if test="${not empty n}">
-               <c:if test="${s.first}">
-                 <a href='?recordId=<c:out value="${n}"/>'>
+            <td>
+               <c:if test="${empty n}">
+                 &nbsp;
                </c:if>
+               <c:if test="${not empty n}">
+                 <c:if test="${s.first}">
+                   <a href='?recordId=<c:out value="${n}"/>'>
+                 </c:if>
                  <c:out value="${n}"/>
-               <c:if test="${s.first}">
-                 </a>
+                 <c:if test="${s.first}">
+                   </a>
+                 </c:if>
                </c:if>
-             </c:if>
-          </td>
+            </td>
           </c:forEach>
         </tr>
         </c:forEach>

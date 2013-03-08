@@ -2,13 +2,13 @@ package tdunnick.phinmsx.domain;
 
 import java.util.*;
 import java.io.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import tdunnick.phinmsx.util.*;
 
 public class ErrorData
 {
 	private ArrayList message = new ArrayList ();
-	Logger console = XLog.console ();
+	Logger console = Logger.getLogger("");
 	
   public ErrorData (Props props)
   {
@@ -22,27 +22,16 @@ public class ErrorData
   		message.add ("Unknown Error - null properties");
   		return;
   	}
-  	Logger logger = props.getLogger();
-  	if (logger == console)
+ 	  if (props.getLogger() == console)
   	{
  		  message.add ("Unknown Error - Only console log available");
   		return;
-  	}
-  	Enumeration e = logger.getAllAppenders();
-  	while (e.hasMoreElements())
-  	{
-  		Object o = e.nextElement();
-  		if (o.getClass().getName().indexOf("FileAppender") >= 0)
-  		{
-  			loadErrors (((FileAppender) o).getFile());
-  			break;
-   		}
   	}
   }
   
   private boolean loadErrors (String fn)
   {
-  	console.debug("Reading " + fn);
+  	console.finest("Reading " + fn);
   	try
   	{
   		BufferedReader inp = new BufferedReader (new FileReader (fn));
@@ -59,7 +48,7 @@ public class ErrorData
   	}
   	catch (IOException e)
   	{
-  		console.error ("Can't read error from " + fn + " - " + e.getMessage());
+  		console.severe ("Can't read error from " + fn + " - " + e.getMessage());
   		return false;
   	}
   	return true;

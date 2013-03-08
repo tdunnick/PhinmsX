@@ -1,6 +1,5 @@
 import groovy.util.GroovyTestCase;
 import tdunnick.phinmsx.crypt.*;
-import org.apache.log4j.*;
 
 class EncryptorTest extends GroovyTestCase
 {

@@ -11,6 +11,10 @@ public class StrUtil
 	 */
 	public static String replace (String s, String old, String rep)
 	{
+		if (s == null)
+			return null;
+		if ((old == null) || (rep == null))
+		  return s;
 		StringBuffer buf = new StringBuffer (s);
 		int i, n, l;
 		

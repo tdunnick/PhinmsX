@@ -22,10 +22,11 @@ package tdunnick.phinmsx.helper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import tdunnick.phinmsx.model.*;
 import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.domain.receiver.RcvEnv;
+import tdunnick.phinmsx.util.*;
 
 /**
  * An implementation of the Receiver's helper.  Note that the receiver
@@ -59,8 +60,6 @@ public class SimpleHelper implements RcvHelper
 
   protected Logger getLogger(RcvEnv env)
 	{
-		if (env.getProperty("helper." + Props.LOGCONTEXT).length() > 0)
-			return env.props.getLogger("helper.", false);
 		return env.props.getLogger();
 	}
 
@@ -76,7 +75,7 @@ public class SimpleHelper implements RcvHelper
 		String p = env.fileName;
 		if (p.length() < 3)
 			p += "_tmp";
-		return File.createTempFile(p, null, new File(getProperty(env, Props.TEMPDIR)));
+		return File.createTempFile(p, null, new File(getProperty(env, PhinmsX.TEMPDIR)));
 	}
 
 	/**
@@ -93,15 +92,15 @@ public class SimpleHelper implements RcvHelper
 	{
   	if (env.getProperty ("helper.overwrite").equalsIgnoreCase("true"))
   		return new File (env.filePath);
-		String folder = env.getProperty("helper." + Props.INCOMINGDIR);
-		String ext = getProperty (env, Props.FILEEXTENSION);
+		String folder = env.getProperty("helper." + Phinms.INCOMINGDIR);
+		String ext = getProperty (env, PhinmsX.FILEEXTENSION);
 		// strip suffix and extension, add our extension
 		String filePath = folder +
 			env.fileName.replaceFirst("([.][^.]*){0,1}[.]" + env.fileSuffix,"") + ext;
 		File f = new File (env.filePath);
 		if (!f.exists())
 			return f;
-		getLogger(env).debug ("File " + env.filePath + " exists, trying full name");
+		getLogger(env).finest ("File " + env.filePath + " exists, trying full name");
 		// if the above wasn't unique, or the preferred extension didn't match
 		// simply add it
 		env.filePath = folder + env.fileName + ext;
@@ -137,13 +136,13 @@ public class SimpleHelper implements RcvHelper
 			fos.close();
 			if (!tmpFile.renameTo(outFile))
 			{
-				getLogger(env).error ("ERROR: Unable to rename " + tmpFile.getPath() + 
+				getLogger(env).severe ("ERROR: Unable to rename " + tmpFile.getPath() + 
 						" to "	+ outFile.getPath());
 			}
 		}
 		catch (IOException e)
 		{
-			getLogger(env).error ("Failed writing data to " + outFile.getPath());
+			getLogger(env).severe ("Failed writing data to " + outFile.getPath());
 			return false;
 		}
 		return true;

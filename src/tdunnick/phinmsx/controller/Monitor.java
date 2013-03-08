@@ -22,7 +22,7 @@ package tdunnick.phinmsx.controller;
 import java.io.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import tdunnick.phinmsx.domain.*;
 import tdunnick.phinmsx.model.*;
 import tdunnick.phinmsx.util.*;
@@ -74,12 +74,12 @@ public class Monitor extends HttpServlet
 		props = new Props();
 		if (!props.load(conf))
 		{
-			logger = XLog.console ();
-			logger.error("Failed initializing " + conf);
+			logger = Logger.getLogger("");
+			logger.severe("Failed initializing " + conf);
 			props = null;
 			return false;
 		}
-		logger = props.getLogger (null, true);
+		logger = props.getLogger ();
 		logger.info ("Started PhinmsX Monitor");
 		mon = new MonitorModel ();
 		ok = mon.initialize(props);
@@ -92,10 +92,11 @@ public class Monitor extends HttpServlet
 	public void init(ServletConfig config) throws ServletException
 	{
 		super.init();
-		System.out.println ("Initializing Monitor Servlet ...");
-		Phinms.setContextPath(config.getServletContext().getRealPath("/"));
+		logger = Logger.getLogger("");
+		logger.info ("Initializing Monitor Servlet ...");
+		PhinmsX.setContextPath(config.getServletContext().getRealPath("/"));
 		if (initialize(config.getInitParameter("Config")))
-			System.out.println ("Monitor running against " + Phinms.getVersion());
+			logger.info ("Monitor running against " + Phinms.getVersion());
 	}
 
 	/**
@@ -103,7 +104,8 @@ public class Monitor extends HttpServlet
 	 */
 	public void destroy()
 	{
-		logger.info("Closing PhinmsX Monitor...");
+		logger.info ("Exiting...");
+		props.close ();
 		mon.close ();
 	}
 
@@ -127,7 +129,7 @@ public class Monitor extends HttpServlet
 		String s = request.getServletPath();
 		String f = null;
 
-		logger.debug ("request path=" + s);
+		logger.finest ("request path=" + s);
 		Object o = null;
 		if (s.indexOf ("dashboard.html") >= 0)
 		{
@@ -150,7 +152,7 @@ public class Monitor extends HttpServlet
 			byte[] img = mon.getChart(s, request);
 			if (img != null)
 			{
-				logger.debug ("img size=" + img.length);
+				logger.finest ("img size=" + img.length);
 				response.setHeader("Content-Type", "image/png");
 				response.setHeader("Content-Length", Integer.toString (img.length));
 				OutputStream out = response.getOutputStream();

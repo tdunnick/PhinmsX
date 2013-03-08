@@ -21,11 +21,10 @@ package tdunnick.phinmsx.domain.receiver;
 
 import java.util.*;
 import java.io.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 import org.apache.xerces.impl.dv.util.Base64;
 
 import tdunnick.phinmsx.util.StrUtil;
-import tdunnick.phinmsx.util.XLog;
 
 public class RcvRequest
 {
@@ -38,7 +37,7 @@ public class RcvRequest
 	
   public RcvRequest()
 	{ 
-  	this.logger = XLog.console();
+  	this.logger = Logger.getLogger("");
 	}
   
   public RcvRequest (Logger logger)
@@ -87,7 +86,7 @@ public class RcvRequest
     	// System.out.println ("Next part at " + p);
     	if ((e = rq.indexOf ("--" + boundary, p)) < 0)
     	{
-    		logger.error ("Request mulitpart missing closing boundary");
+    		logger.severe ("Request mulitpart missing closing boundary");
     		return false;
     	}
     	String part = rq.substring(p, e);
@@ -113,7 +112,7 @@ public class RcvRequest
     		int f = part.indexOf("name=\"");
     		if (f < 0)
     		{
-      		logger.error ("Request mulitpart payload missing name");
+      		logger.severe ("Request mulitpart payload missing name");
     			return false;
     		}
         f += 6;
@@ -146,12 +145,12 @@ public class RcvRequest
     	int c;
     	while ((c = in.read()) > 0)
     		b.append ((char) c);
-      logger.debug("read:\n" + b.toString());
-    	return StrUtil.replace(b.toString(), "\\r\\n", "\n");
+      logger.finest("read:\n" + b.toString());
+    	return StrUtil.replace(b.toString(), "\r\n", "\n");
     }
     catch (IOException e)
     {
-    	logger.error ("Failed reading parse - " + e.getLocalizedMessage());
+    	logger.severe ("Failed reading parse - " + e.getLocalizedMessage());
     	return null;
     }
   }
@@ -162,12 +161,12 @@ public class RcvRequest
 		int p, e;
 		if ((p = m.indexOf(BOUNDARY)) < 0)
 		{
-			logger.error("Request mulitpart boundary not specified");
+			logger.severe("Request mulitpart boundary not specified");
 			return null;
 		}
 		if (((p = m.indexOf('"', p)) < 0) || ((e = m.indexOf('"', ++p)) < 0))
 		{
-			logger.error("Request mulitpart boundary not quoted");
+			logger.severe("Request mulitpart boundary not quoted");
 			return null;
 		}
 		return m.substring(p, e);

@@ -19,17 +19,14 @@
 package tdunnick.phinmsx.domain;
 
 import java.io.*;
-import java.util.Map;
+import java.text.*;
+import java.util.*;
 import java.net.URL;
 import java.sql.*;
-import org.apache.log4j.*;
+import java.util.logging.*;
 
 import tdunnick.phinmsx.crypt.*;
-import tdunnick.phinmsx.util.Phinms;
-import tdunnick.phinmsx.util.StrUtil;
-import tdunnick.phinmsx.util.XLog;
-import tdunnick.phinmsx.util.XmlContent;
-
+import tdunnick.phinmsx.util.*;
 /**
  * Definitions and shared methods for managing PHIN-MS properties.
  * This normally uses PHIN-MS configuration files, but may stand-alone.
@@ -41,54 +38,22 @@ import tdunnick.phinmsx.util.XmlContent;
  */
 public class Props
 {
-	// common property suffixes shared among the PhinmsX configurations.
-	
-	// logging...
-	public final static String LOGCONTEXT = "logContext";
-	public final static String LOGDEBUG = "logDebug";
-	public final static String LOGDIR = "logDir";
-	public final static String LOGNAME = "logName";
-	public final static String LOGLEVEL = "logLevel";
-	public final static String LOGSIZE = "maxLogSize";
-	public final static String LOGARCHIVE = "logArchive";
-	public final static String INCOMINGDIR = "incomingDir";
-	// encryption
-	public final static String KEYSTORE = "keyStore";
-	public final static String KEY = "key";
-	public final static String KEYSTOREPASSWD = "keyStorePasswd";
-	public final static String PASSWORDFILE = "passwordFile";
-	public final static String SEED = "seed";
-	// queuing
-	public final static String QUEUEMAP = "queueMap";
-	public final static String DATABASE = "databasePool.database.";
-	public final static String DATABASEID = DATABASE + "databaseId";
-	public final static String DBTYPE = DATABASE + "dbType";
-	public final static String POOLSIZE = DATABASE + "poolSize";
-	public final static String JDBCDRIVER = DATABASE + "jdbcDriver";
-	public final static String DATABASEURL = DATABASE + "databaseUrl";
-	public final static String DATABASEUSER = DATABASE + "databaseUser";
-	public final static String DATABASEPASSWD = DATABASE + "databasePasswd";
-	// unique to our configuration
-	public final static String PHINMS = "phinms";
-	public final static String RECEIVERXML = "receiverXML";
-	public final static String SENDERXML = "senderXML";
-	public final static String QUEUENAME = "queueName";
-	public final static String FILEEXTENSION = "fileExtension";
-	public final static String TEMPDIR = "tempDirectory";
-	// helper class
-	public final static String HELPER = "helper.class";
-	// status file
-	public final static String STATUS = "status";
-
-	// a few configuration defaults
-	public final static String DFLTQUEUE = "workerqueue";
-	
 	private String propRoot = null;
 	private XmlContent props = null;
+	private Passwords passwords = null;
 	private Logger logger = null;
 	private String tableName = null;
 	Connection conn = null;
 		
+	
+	/**
+	 * on start up we at least need a default logger
+	 */
+	public Props()
+	{
+		logger = Logger.getLogger("");
+	}
+
 	/**
 	 * Load a configuration and initial the properties.  Will merge
 	 * with PHIN-MS receiver properties.
@@ -99,6 +64,13 @@ public class Props
 	public boolean load (String conf)
 	{
 		return load (conf, null);
+	}
+	
+	public boolean close ()
+	{
+		closeConnection ();
+		closeLog ();
+		return true;
 	}
 	
 	/**
@@ -123,27 +95,52 @@ public class Props
 	 */
 	public boolean load (String conf, XmlContent r)
 	{
-		logger = XLog.console();
 		String owner = getParentClassName ();
 		String s = null;
 		File d = null;
 		
-		logger.debug ("OWNER " + owner);
+		logger.fine ("Loading configuration for " + owner);
 		
-		// if there is no configuration given, create one
+		// if there is no configuration given, try the default
 		if (conf == null)
-		{		
+		{
+			d = new File (PhinmsX.getContextPath()
+					+ PhinmsX.PHINMSXPATH + "/config/" + owner + ".xml");
+		  logger.info("trying configuration " + d.getAbsolutePath());
+			if (d.canRead()) 
+				conf = d.getAbsolutePath();
+		}
+		// if no configuration then create one
+		if (conf == null)
+		{
+			logger.info("auto configuring...");
 			props = new XmlContent ();
 			props.createDoc();
 			propRoot = owner;
-		}
-		else if (((props = getProps (conf)) == null) ||
-				((propRoot = props.getRoot ()) == null))
+	  }
+		else
 		{
-			logger.error("Unable to load properties from " + conf);
-			return false;
+			logger.info("configuring from " + conf);
+			if (((props = getProps(conf)) == null)
+					|| ((propRoot = props.getRoot()) == null))
+			{
+				logger.severe("Unable to load properties from " + conf);
+				return false;
+			}
 		}
 		propRoot += ".";
+		
+		logger.finest ("Properties intialized");
+		/*
+		 * make sure we have a default file location
+		 */
+		if (getProperty (PhinmsX.PHINMSX) == null)
+		{
+			d = new File (PhinmsX.getContextPath() + PhinmsX.PHINMSXPATH);
+			setProperty (PhinmsX.PHINMSX, d.getPath());
+		}
+		
+		logger.finest ("Context set to " + getProperty (PhinmsX.PHINMSX));
 		
 		/*
 		 * if PHIN-MS hasn't been identified, then try to set it
@@ -152,35 +149,35 @@ public class Props
 		 */
 		if (Phinms.getPath (null) == null)
 		{
-			String p = Phinms.setPath(getProperty (Props.PHINMS));
+			String p = Phinms.setPath(getProperty (PhinmsX.PHINMS));
 			if (p == null)
-				p = Phinms.setPath(getProperty (Props.RECEIVERXML));
+				p = Phinms.setPath(getProperty (PhinmsX.RECEIVERXML));
 			if (p == null)
-				p = Phinms.setPath(getProperty (Props.SENDERXML));
+				p = Phinms.setPath(getProperty (PhinmsX.SENDERXML));
 			if (p == null)
- 			  Phinms.setPath(Phinms.getContextPath());
+ 			  Phinms.setPath(PhinmsX.getContextPath());
 		}
 		
 		/*
 		 * set up a logging - note done BEFORE merging so that each
 		 * configuration will have it's own logging unless discretely
-		 * specified.
+		 * specified with at least a LOGCONTEXT.
 		 */
-		if (getProperty (Props.LOGDIR) == null)
+		if (getProperty (Phinms.LOGDIR) == null)
 		{
-			d = new File (Phinms.getContextPath() + "/../../phinmsx/logs");
+			d = new File (getProperty (PhinmsX.PHINMSX) + "/logs");
 			if (!(d.exists() || d.mkdirs ()))
-				logger.error ("Can't create " + d.getPath ());
+				logger.severe ("Can't create " + d.getPath ());
 			if (d.isDirectory())
-				setProperty (Props.LOGDIR, d.getAbsolutePath());			
+				setProperty (Phinms.LOGDIR, d.getAbsolutePath());			
 		}
-		if (getProperty (Props.LOGCONTEXT) == null)
-			setProperty (Props.LOGCONTEXT, owner);
-		if (getProperty (Props.LOGNAME) == null)
-			setProperty (Props.LOGNAME, owner + ".log");
-		if (getProperty (Props.LOGLEVEL) == null)
-			setProperty (Props.LOGLEVEL, "INFO");
-		getLogger (null, true);
+		if (getProperty (Phinms.LOGCONTEXT) == null)
+			setProperty (Phinms.LOGCONTEXT, owner);
+		if (getProperty (Phinms.LOGNAME) == null)
+			setProperty (Phinms.LOGNAME, owner);
+		if (getProperty (Phinms.LOGLEVEL) == null)
+			setProperty (Phinms.LOGLEVEL, "INFO");
+		setLogger (null);
 		
 		/*
 		 * if no properties were given, then merge by default 
@@ -189,68 +186,82 @@ public class Props
 		if (r == null)
 		{
 			// get receiver.xml
-			s = getProperty(Props.RECEIVERXML);
+			s = getProperty(PhinmsX.RECEIVERXML);
 			if (s == null)
 				s = Phinms.getPath("config") + "/receiver/receiver.xml";
 			if ((r = getProps(s)) == null)
-				logger.error ("Can't load " + s);
+				logger.severe ("Can't load " + s);
 		}
 		if ((r != null) && !props.merge (r, false))
 		{
-		  logger.fatal ("Failed merging properties from " + r.getRoot());
+		  logger.severe ("Failed merging properties from " + r.getRoot());
 			return false;
 		}
-		
+		passwords = loadPasswords ();
+
 		/*
-		 * make sure tomcat has a temp directory
+		 * make sure we have a temp folder for the JVM
+		 * on tomcat this should be CATALINA_TMPDIR which often does not
+		 * (yet) exist
 		 */
-		if ((s = Phinms.getEnv("CATALINA_TMPDIR")) == null)
+		if ((s = System.getProperty("java.io.tmpdir")) == null)
 		{
-			logger.error ("CATALINA_TMPDIR not set for Tomcat");
+			logger.severe ("No temporary directory set for the JVM");
 		}
 		else
 		{
 			d = new File (s);
 			if (!(d.exists() || d.mkdirs()))
 			{
-				logger.error ("can't create CATALINA_TMPDIR");
+				logger.severe ("can't create " + d.getPath());
 			}
 		}
-		
+
 		/*
 		 * set up a temp directory
 		 */
-		if ((s = getProperty (Props.TEMPDIR)) == null)
+		if ((s = getProperty (PhinmsX.TEMPDIR)) == null)
 		{
-			s = Phinms.getEnv("CATALINA_TMPDIR");
-			if (s == null)
-				s = Phinms.getEnv ("TEMP");
-			if (s == null)
-				s = Phinms.getEnv("TMP");
-			if (s == null)
-				s = Phinms.getContextPath() + "/../../phinmsx/tmp";
-
-			setProperty (Props.TEMPDIR, s);
+			s = getProperty (PhinmsX.PHINMSX) + "/temp";
+			setProperty (PhinmsX.TEMPDIR, s);
 		}
 		d = new File (s);
 		if (!(d.exists() || d.mkdirs()))
 		{
-			logger.error ("can't create " + d.getPath());
-			setProperty (Props.TEMPDIR, null);
+			logger.severe ("can't create " + d.getPath());
+			setProperty (PhinmsX.TEMPDIR, null);
 		}
-		logger.debug("TEMPDIR " + s);
+		logger.finest("TEMPDIR " + s);
 		
 		/*
 		 * finally the status cache and default queue for the receiver
 		 */
 		if (owner.equals("Receiver"))
 		{
-			if (getProperty(Props.STATUS) == null)
-				setProperty(Props.STATUS, getProperty(Props.LOGDIR) + "/status.bin");
-			if (getProperty(Props.QUEUENAME) == null)
-				props.setValue(propRoot + Props.QUEUENAME, Props.DFLTQUEUE);
+			if (getProperty(PhinmsX.STATUS) == null)
+				setProperty(PhinmsX.STATUS, getProperty(Phinms.LOGDIR) + "/status.bin");
+			if (getProperty(PhinmsX.QUEUENAME) == null)
+				props.setValue(propRoot + PhinmsX.QUEUENAME, PhinmsX.DFLTQUEUE);
 		}
 		return true;
+	}
+	
+	/**
+	 * Load passwords for a given configuration.  Try various tags
+	 * for the password file, key, and seed values before giving up.
+	 * 
+	 * @return the passwords or null if can't be loaded.
+	 */
+	public Passwords loadPasswords ()
+	{
+		Passwords pw = new Passwords ();
+		if (!pw.load (props))
+		{
+			logger.severe ("Can't load passwords from " 
+					+ getProperty (Phinms.PASSWORDFILE));
+			return null;
+		}
+		return pw;
 	}
 
 	/**
@@ -284,11 +295,11 @@ public class Props
 	{
 		if (tableName != null)
 		  return tableName;
-		String queue = getProperty (Props.QUEUENAME);
-		String mapname = getProperty (Props.QUEUEMAP);
+		String queue = getProperty (PhinmsX.QUEUENAME);
+		String mapname = getProperty (Phinms.QUEUEMAP);
 		if ((queue == null) || (mapname == null))
 			return null;
-		// getLogger().debug("Loading queue map " + mapname);
+		// logger().debug("Loading queue map " + mapname);
 		XmlContent map = new XmlContent ();
 		if (!map.load (new File (mapname)))
 			return null;
@@ -333,20 +344,35 @@ public class Props
 	}
 
 	/**
+	 * Get the password or userid for a given tag in a configuration
+	 * @param name of the tag property
+	 * @return
+	 */
+	public String getPassword (String name)
+	{
+		if (passwords == null)
+		  return null;
+		String s = getProperty (name);
+		if (s == null)
+			return null;
+		return passwords.get(s);
+	}
+	
+	/**
 	 * Set a default property.  
 	 * @param name of property sans prefix
 	 * @param value to set
 	 */
 	public void setProperty (String name, String value)
 	{
-		logger.debug("Set " + name + " to " + value);
+		logger.finest("Set " + name + " to " + value);
 		if ((props != null) && (propRoot != null))
 		{
 		  if (!props.setValue (propRoot + name, value))
-		  	logger.error("Can't set " + propRoot + name + " to " + value);
+		  	logger.severe("Can't set " + propRoot + name + " to " + value);
 		}
 		else
-			logger.warn ("Can't set " + name + " to " + value);
+			logger.warning ("Can't set " + name + " to " + value);
 	}
 
 	/**
@@ -366,7 +392,7 @@ public class Props
 		XmlContent xml = new XmlContent ();
 		if (!xml.load(f))
 		{
-			logger.error("Failed loading " + name + " - " + xml.getError());
+			logger.severe("Failed loading " + name + " - " + xml.getError());
 			return null;
 		}
 		return xml;
@@ -382,93 +408,150 @@ public class Props
 	 */
 	public Logger getLogger ()
 	{
-		if (logger == null)
-			return getLogger (null, false);
-		return this.logger;
+		return logger;
+	}
+	
+	/**
+	 * close the handler(s) for this logger
+	 * @return
+	 */
+	public boolean closeLog ()
+	{
+		if ((logger != null) && (logger != Logger.getLogger("")))
+		{
+			Handler[] h = logger.getHandlers();
+			for (int i = 0; i < h.length; i++)
+			{
+				h[i].close();
+				logger.removeHandler(h[i]);
+			}
+			logger.setLevel(Level.OFF);
+		}
+		return true;
 	}
 
 	/**
-	 * force the use of this logger
-	 * @param logger
+	 * Set up the file handler for this logger if needed.
+	 * 
+	 * @param l logger to set up
+	 * @return true if successful
 	 */
-	public void setLogger (Logger logger)
+	public boolean setHandler (Logger l)
 	{
-		this.logger = logger;
+		if (l == null)
+			return false;
+		String s = getProperty (Phinms.LOGDIR);
+
+		// if no log dir or debug is set us the parent (root) handler
+	  if (s == null)
+	  {
+	  	logger.warning ("No LOGDIR set");
+      return false;
+	  }
+	  
+	  // get or create the log name
+		String logName = getProperty(Phinms.LOGNAME);
+		if ((logName == null) || (logName.length() == 0))
+			logName = "PhinmsX";
+		logName = s + "/" + logName;
+		
+		int numlogs = 10; // archive 10 logs
+		int limit = 0x100000; // 1M default size
+		
+	  // do we archive
+	  if ((s = getProperty (Phinms.LOGARCHIVE))!= null)
+		{
+			if (!s.toLowerCase().equals("true"))
+				numlogs = 0;
+			else if (s.matches("[0-9]+"))
+				numlogs = Integer.parseInt(s);
+			if ((s = getProperty(Phinms.LOGSIZE)) != null)
+			{
+				if (s.matches("[0-9]+"))
+					limit = Integer.parseInt(s);
+			}
+		}
+	  try
+		{
+			FileHandler f;
+			if (numlogs > 0)
+				f = new FileHandler(logName + ".%g.txt", limit, numlogs, true);
+			else
+				f = new FileHandler(logName + ".txt", false);
+			f.setFormatter(new PhinmsXFormatter ());
+			l.addHandler(f);
+			l.setLevel(getLevel());
+			return true;
+		}
+	  catch (IOException e)
+	  {
+	  	return false;
+	  }
 	}
 	
 	/**
-	 * Set up for logging. 
+	 * force the use of this logger or create a new one if needed.
+	 * We use the Level to determine if this logger has been previously
+	 * set up and open
 	 * 
-	 * @param logname of rotated log
+	 * @param logger
+	 * @return logger
 	 */
-	public Logger getLogger (String prefix, boolean reconfigure)
-	{
-		int FILE_SIZE = 10000;
-		int NUM_FILES = 5;
-		if (prefix == null)
-			prefix = "";
-		String l = getProperty (prefix + Props.LOGDEBUG);
-		boolean debug = ((l != null) && l.equalsIgnoreCase("TRUE"));
-		String s = getProperty (prefix + Props.LOGCONTEXT);
+	public Logger setLogger (Logger newlogger)
+  {
+		if (newlogger != null)
+			return logger = newlogger;
+		String s = getProperty (Phinms.LOGDEBUG);
+		boolean debug = ((s != null) && s.equalsIgnoreCase("TRUE"));
+		s = getProperty (Phinms.LOGCONTEXT);
 		if (s == null)
 		{
-			logger = XLog.console ();
-			logger.warn ("No LOGCONTEXT set - using console");
+			logger.warning ("No LOGCONTEXT set - using root logger");
 			return logger;
 		}
-		logger = Logger.getLogger(s);
-		if (!reconfigure && logger.getAllAppenders().hasMoreElements())
-			return logger;
-		logger.removeAllAppenders();
-    XLog.setLogLevel (logger, getProperty(prefix + Props.LOGLEVEL));
-	
-		PatternLayout layout = new PatternLayout (debug ? XLog.DFMT : XLog.FMT);
-		// create and configure a new logger
-	  if (((l = getProperty (prefix + Props.LOGDIR)) == null) || debug)
-	  {
-		  logger.addAppender(new ConsoleAppender (layout));
-		  if (l == null)
-		  {
-		  	logger.warn("No LOGDIR set - using console");
-	      return logger;
-		  }
-	  }
-	  if (!l.matches(".*[\\\\/]"))
-	  	l += "/";
-		String logName = getProperty(prefix + Props.LOGNAME);
-		if ((logName == null) || (logName.length() == 0))
-			logName = "phinmsx.log";
-		logName = l + logName;
-		XLog.console().debug ("Configuring appender for " + logName);
-    try
+		if ((newlogger = LogManager.getLogManager().getLogger(s)) != null)
 		{
-    	RollingFileAppender appender = 
-    		new RollingFileAppender (layout, logName, true);
-    	appender.setImmediateFlush(true);
-    	s = getProperty (Props.LOGSIZE);
-    	if ((s != null) && s.matches("[0-9]+"))
-    		appender.setMaxFileSize(s);
-    	if ((s = getProperty (Props.LOGARCHIVE)) == null)
-    		s = "15";
-    	if (s.equalsIgnoreCase("false"))
-    		appender.setMaxBackupIndex(0);
-    	else if (s.matches("[0-9]+")) 
-      	appender.setMaxBackupIndex(Integer.parseInt(s));
-    	else
-      	appender.setMaxBackupIndex(15);
-			logger.addAppender(appender);
-			return logger;
+			if (!newlogger.getLevel().equals(Level.OFF))
+			  return logger = newlogger;
 		}
-		catch (IOException e)
+		else
 		{
-		  logger.addAppender(new ConsoleAppender (layout));
-			logger.error ("Unable to set log file to " 
-					+ logName + ": " + e.getMessage());
+		  newlogger = Logger.getLogger(s);
 		}
-		return null;
+		newlogger.setLevel(Level.OFF);
+  	newlogger.setUseParentHandlers(debug);
+	  if (setHandler (newlogger))
+	  	logger = newlogger;
+		return logger;
 	}
 	
-	
+	/**
+	 * convert logging designation to compatible Level using both
+	 * log4j  and PHIN-MS conventions
+	 * @return logging level to use
+	 */
+	public Level getLevel ()
+	{
+		String s = getProperty (Phinms.LOGLEVEL).toUpperCase();
+		if (s == null)
+			s = "INFO";
+		else if (s.equals("DEBUG") || s.equals("DETAIL"))
+			s = "FINEST";
+		else if (s.equals("WARN"))
+			s = "WARNING";
+		else if (s.equals("FATAL") || s.equals("ERROR"))
+			s = "SEVERE";
+		try
+		{
+		  logger.info ("setting log level to " + s);
+		  return Level.parse(s);
+		}
+		catch (Exception e)
+		{
+		  logger.severe("Log configuration: " + e.getMessage());
+			return Level.INFO;
+		}
+	}
 	/*************************** db management *************************/
 	
 	public Statement query (String q)
@@ -498,7 +581,7 @@ public class Props
 		}
 		catch (SQLException e)
 		{
-			logger.error ("Unable to complete query " + q + " - " 
+			logger.severe ("Unable to complete query " + q + " - " 
 				+ e.getMessage());
 		}
 		return null;		
@@ -515,20 +598,20 @@ public class Props
 		if (conn != null)
 			return (conn);
 		
-		String jdbcDriver = getProperty(Props.JDBCDRIVER);
-		String databaseUrl = getProperty(Props.DATABASEURL);
-		String databaseUser = getProperty(Props.DATABASEUSER);
-		String databasePasswd = getProperty(Props.DATABASEPASSWD);
+		String jdbcDriver = getProperty(Phinms.JDBCDRIVER);
+		String databaseUrl = getProperty(Phinms.DATABASEURL);
+		String databaseUser = getProperty(Phinms.DATABASEUSER);
+		String databasePasswd = getProperty(Phinms.DATABASEPASSWD);
 
 		// get the dB password from the password store
-		String key = getProperty(Props.KEY);
-		String seed = getProperty (Props.SEED);
-		String passfile = getProperty(Props.PASSWORDFILE);
+		String key = getProperty(Phinms.KEY);
+		String seed = getProperty (Phinms.SEED);
+		String passfile = getProperty(Phinms.PASSWORDFILE);
 		
 		Passwords pw = new Passwords ();
 		if (!pw.load(passfile, seed, key))
 		{
-			logger.error ("Can't resolve passwords");
+			logger.severe ("Can't resolve passwords");
 			return null;
 		}
 		databaseUser = pw.get(databaseUser);
@@ -541,7 +624,7 @@ public class Props
 		}
 		catch (ClassNotFoundException e)
 		{
-			logger.error ("Unable to load " + jdbcDriver);
+			logger.severe ("Unable to load " + jdbcDriver);
 			return null;
 		}
 		try
@@ -551,7 +634,7 @@ public class Props
 		}
 		catch (Exception e)
 		{
-			logger.error ("Unable to connect to " 
+			logger.severe ("Unable to connect to " 
 					+ databaseUrl + " - " + e.getLocalizedMessage());
 			return (null);
 		}
@@ -573,7 +656,7 @@ public class Props
 			}
 			catch (SQLException e)
 			{
-			  logger.error ("Failed closing connection - " 
+			  logger.severe ("Failed closing connection - " 
 						+ e.getLocalizedMessage());
 			}
 		  conn = null;

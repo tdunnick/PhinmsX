@@ -39,7 +39,7 @@ public class PhinmsX
 	// a few configuration defaults
 	public final static String DFLTQUEUE = "workerqueue";
 	
-	public final static String xversion = "1.0c 03/08/2013";
+	public final static String xversion = "1.0d 03/17/2013";
 	private static String contextPath = null;
 	public final static String PHINMSXPATH = "/../../../phinmsx";
 	

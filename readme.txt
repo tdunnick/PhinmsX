@@ -12,10 +12,16 @@ at this point only been tested with 2.7.0sp1 and 2.8.02.  Plug-ins have
 not yet been tested "in situ" (e.g. in an actual PHIN-MS environment), but
 the basic receiver is functional including payload decryption.
 
+Availability:
+
+PhinmsX is currently available with full source code from 
+https://github.com/tdunnick/PhinmsX.  You can also download a ZIP file
+version and view a demo at https://mywebspace.wisc.edu/tdunnick/web/phinmsx.
+
 Installation:
 
-If you simply download the WAR file (phinmsx.war) and place it in the "webapps"
-folder of you PHIN-MS distribution it should self configure and be running within
+You can download the WAR file (phinmsx.war) and place it in the "webapps"
+folder of you PHIN-MS distribution. It should self configure and be running within
 a few seconds.  Point your browser at /phinmsx on your PHIN-MS domain host.  If you
 are on the PHIN-MS server the URL will typically be http://localhost:5088/phinmsx.
 

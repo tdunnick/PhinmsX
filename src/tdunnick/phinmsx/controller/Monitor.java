@@ -149,7 +149,7 @@ public class Monitor extends HttpServlet
 		}
 		else if (s.indexOf (".png") >= 0)
 		{
-			byte[] img = mon.getChart(s, request);
+			byte[] img = mon.getChart(s);
 			if (img != null)
 			{
 				logger.finest ("img size=" + img.length);

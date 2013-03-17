@@ -155,7 +155,33 @@ public class MonitorModel
 	 */
 	public byte[] getChart (String path, HttpServletRequest request)
 	{
-		DashBoardData dash = getDashBoardSession (request);
+		return getChart (path, getDashBoardSession (request));
+	}
+	
+	/**
+	 * Return an image found in the dashboard bean.  This make use of a 
+	 * bean cache so that we don't continually regenerate the data used by
+	 * the chart.  Instead generate it once (in getDashBoardData above) and
+	 * look it up on the browser call back requests. Here assume session id
+	 * is embedded in img path.
+	 * 
+	 * @param path to image
+	 * @return the image
+	 */
+	public byte[] getChart (String path)
+	{
+		String id = path.replaceFirst("^.*_(.*)[.]png$", "$1");
+		return getChart (path, getDashBoardSession (id));
+	}
+	
+	/**
+	 * Return an image found in a dashboard bean. 
+	 * @param path to image
+	 * @param dash bean
+	 * @return the image
+	 */
+	public byte[] getChart (String path, DashBoardData dash)
+	{
 		Object[] c;
 		if (path.indexOf ("bar") >= 0)
 			c = dash.getBarchart ();	
@@ -180,12 +206,23 @@ public class MonitorModel
 	 */
 	private DashBoardData getDashBoardSession (HttpServletRequest request)
 	{
-		DashBoardData dash = DashBoardCache.get(request.getSession());
+		return getDashBoardSession (request.getSession().getId());
+	}
+
+	/**
+	 * return a dashboard bean either from the cache, or a new one
+	 * 
+	 * @param id from browser used to search the cache
+	 * @return a dashboard bean
+	 */
+	private DashBoardData getDashBoardSession (String id)
+	{
+		DashBoardData dash = DashBoardCache.get(id);
 		if (dash == null)
 			dash = new DashBoardData(Version, Phinms.getVersion());
 		return dash;
 	}
-
+	
 	/**
 	 * set a dashboard bean with all the data needed by the view, based on 
 	 *  the session.  This includes the data, images, statistics, etc.
@@ -217,12 +254,12 @@ public class MonitorModel
 		dash.setEnds(ends);
 		// get our current stats and create the associate images
 		setDashStats (dash, table, ends, days);
-		Charts chart = new Charts();
+		Charts chart = new Charts(logger);
 		chart.getPieChart(dash);
 		chart.getBarChart(dash);
 		chart.getLineChart(dash);
 		// finally save it in our cache for image recall
-		DashBoardCache.put(session, dash);
+		DashBoardCache.put(session.getId(), dash);
 		return true;
 	}
 
@@ -252,7 +289,7 @@ public class MonitorModel
 			long start = ends - interval;
 			addConstraint (buf, dateName + " > ", Phinms.fmt_date (start));
 			addConstraint (buf, dateName + " <= ", Phinms.fmt_date (ends));
-			Statement stmt = props.query ("SELECT " + constraintName + "," 
+			Statement stmt = props.query ("SELECT recordId," + constraintName + "," 
 					+ dateName + " FROM " + table	+ buf.toString() 
 					+ " ORDER BY " + dateName + " ASC", 0);
 			if (stmt == null)
@@ -275,8 +312,14 @@ public class MonitorModel
 		  {
 		  	try
 		  	{
-			  	String s = res.getString(1);
-			  	long t = Phinms.get_time (res.getString(2));
+			  	String s = res.getString(2);
+			  	if (s == null)
+			  	{
+			  		logger.warning ("Record " + res.getString(1) + " missing " 
+			  				+ constraintName + " in " + table);
+			  		continue;
+			  	}
+			  	long t = Phinms.get_time (res.getString(3));
 			  	if (t > start)
 			  	{
 			  		if (min > n) min = n;
@@ -327,12 +370,12 @@ public class MonitorModel
 	{
 		String s;
 		mon.setTables(tables);
-		mon.setRecordId(getInt((String) session.getAttribute ("recordId")));
-		mon.setTop(getInt((String) session.getAttribute ("top")));
-		mon.setConstraint((String) session.getAttribute("constraint"));
 		if ((s = (String) session.getAttribute("table")) == null)
 			s = getTransportName(); 
 		mon.setTable(s);
+		mon.setConstraint((String) session.getAttribute("constraint"));
+		mon.setTop(getInt((String) session.getAttribute ("top")));
+		mon.setRecordId(getInt((String) session.getAttribute ("recordId")));
 		return (getData (mon));
 	}
 	
@@ -766,36 +809,38 @@ public class MonitorModel
 
 	/******************** session data management *******************/
 	
+	/**
+	 * Add any request parameters to the session data.  Reset sub-parameter -
+	 * for example a change in the table voids everything else.  However,
+	 * we set sub-paramters last so they can still be included on a RESTful
+	 * URL
+	 * 
+	 * @param request
+	 * @return
+	 */
 	private HttpSession setSession (HttpServletRequest request)
 	{
 		HttpSession session = request.getSession();
-		setSessionAttribute (session, request, "table");
-		setSessionAttribute (session, request, "constraint");
-		setSessionAttribute (session, request, "recordId");
-		setSessionAttribute (session, request, "top");
-		setSessionAttribute (session, request, "days");
-		setSessionAttribute (session, request, "ends");
-		return (session);
-	}
-		
-	private void setSessionAttribute (HttpSession s, HttpServletRequest r, String a)
-	{
-		String v = r.getParameter(a);
-		if ((v == null) || (v.length() == 0))
-			return;
-		s.setAttribute (a, v);
-		if (a.equals("days") || a.equals("ends") || a.equals("recordId"))
-			return;
-		if (a.equals("top"))
+		String[] parm = { "table", "constraint", "top", "recordId", "days", "ends" };
+		for (int i = 0; i < parm.length; i++)			
 		{
-			s.setAttribute ("recordId", v);
+			String v = request.getParameter(parm[i]);
+			if ((v == null) || (v.length() == 0))
+				continue;
+			logger.finest("setting session " + parm[i] + "=" + v);
+			session.setAttribute (parm[i], v);
+			if (i == 2) // "top"
+			{
+				session.setAttribute ("recordId", v);
+			}
+			else if (i < 2) // "table" or "constraint"
+			{
+				session.removeAttribute("recordId");
+				session.removeAttribute("top");
+				if (i == 0) // "table"
+					session.removeAttribute("constraint");
+			}
 		}
-		else
-		{
-			s.removeAttribute("recordId");
-			s.removeAttribute("top");
-			if (a.equals("table"))
-				s.removeAttribute("constraint");
-		}
+		return session;
 	}
 }

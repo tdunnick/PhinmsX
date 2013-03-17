@@ -16,6 +16,7 @@
 
 	<property name="phinmsxjar" value="phinmsx.jar" />
   <property name="phinmsxwar" value="phinmsx.war" />
+  <property name="phinmsxzip" value="phinmsx.zip" />
 
 	<property name="ant.build.javac.target" value="1.4" />
   <property name="ant.build.javac.source" value="1.4" />
@@ -110,7 +111,7 @@
 	</pathconvert>
 		
 	<!-- the jar -->
-	<target name="archive" >
+	<target name="jar" >
     <delete file="${basedir}/${phinmsxjar}" failonerror="false" />
     <jar jarfile="${basedir}/${phinmsxjar}">
       <fileset dir="${build}" 
@@ -124,8 +125,8 @@
     </jar>
 	</target>
 	
-	<!-- the distribution -->
-	<target name="dist" depends="archive">
+	<!-- the war -->
+	<target name="war" depends="jar">
     <delete file="${basedir}/${phinmsxwar}" failonerror="false" />		
 		<war warfile="${basedir}/${phinmsxwar}">
 			<fileset dir="${basedir}\WebContent" excludes="**/web.xml" />
@@ -135,5 +136,14 @@
         prefix="WEB-INF" />
 		</war>
 	</target>
-
+	
+  <!-- the distribution -->
+  <target name="dist" depends="war">
+    <delete file="${basedir}/${phinmsxzip}" failonerror="false" />
+    <zip destfile="${basedir}/${phinmsxzip}">
+      <fileset dir="${basedir}" 
+        includes="${phinmsxwar},*.html,*.txt"
+      />
+    </zip>
+  </target>
 </project>

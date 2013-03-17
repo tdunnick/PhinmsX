@@ -29,13 +29,13 @@ public class DashBoardCache
   {
   }
   
-  public static synchronized void put (HttpSession s, DashBoardData d)
+  public static synchronized void put (String id, DashBoardData d)
   {
-	  cache.put(s.getId(), d, 5);
+	  cache.put(id, d, 5);
   }
   
-  public static synchronized DashBoardData get (HttpSession s)
+  public static synchronized DashBoardData get (String id)
   {
-  	return (DashBoardData) cache.get(s.getId()); 
+  	return (DashBoardData) cache.get(id); 
   }
 }

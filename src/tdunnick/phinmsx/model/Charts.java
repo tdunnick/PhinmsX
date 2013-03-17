@@ -22,6 +22,7 @@ import java.io.*;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.logging.*;
 import java.awt.*;
 import java.awt.image.*;
 
@@ -39,8 +40,19 @@ import tdunnick.phinmsx.domain.DashBoardData;
 public class Charts
 {		
 	private final static long MS = 24*60*60*1000;
+	private Logger logger = null;
 
 	/************************* bar charts *********************************/
+	
+	public Charts ()
+	{
+		logger = Logger.getLogger("");
+	}
+	
+	public Charts (Logger l)
+	{
+		logger = l;
+	}
 	
 	/**
 	 * Generate and set a bar chart for the current table shown in the dashboard.
@@ -286,12 +298,27 @@ public class Charts
 		ArrayList categories = new ArrayList();
 		HashMap counts = new HashMap ();
 		
+		if (r == null)
+		{
+			logger.severe("Unable to get dashboard statistics");
+			return;
+		}
 		// count entries for each category
 		for (int i = 0; i < r.size(); i++)
 		{
 			String[] item = (String[]) r.get(i);
+			if (item == null)
+			{
+				logger.severe("Null category from dashboard statistics");
+				return;
+			}
 			int v = 0;
 			String k = item[0];
+			if (k == null)
+			{
+				logger.severe("Null category entry " + i + " from dashboard statistics");
+				return;
+			}
 			if (counts.containsKey(k))
 				v = Integer.parseInt((String) counts.get(k));
 			else

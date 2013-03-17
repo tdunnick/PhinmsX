@@ -21,6 +21,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 
+<c:set var="id" value="${pageContext.session.id}"/>
 <c:set var="m" value="${requestScope.dashboard}" />
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 
@@ -75,7 +76,9 @@ border-width: 1px;
     <td>
       <c:out value="${m.piechart[1]}" escapeXml="false" />
       <center>
-        <img src="images/piechart.png" alt="a chart" usemap="#pie" /><br/>
+        <img 
+          <c:out value="src=\"images/piechart_${id}.png\"" escapeXml="false" />
+           alt="a chart" usemap="#pie" /><br/>
         ending
         <!--  
         <input type='text' value='<c:out value="${m.date}" />' size='8'
@@ -98,7 +101,9 @@ border-width: 1px;
     </td>
     <td class="center">
       <center>
-        <img src="images/linechart.png" alt="a chart" />
+        <img 
+          <c:out value="src=\"images/linechart_${id}.png\"" escapeXml="false" />
+           alt="a chart" />
       </center>
     </td>
       <!--  this side gets the list of queues/routes/etc -->
@@ -116,7 +121,9 @@ border-width: 1px;
 </table>
 <hr style="clear:both"/>
 <div style="width:98%">
-  <img src="images/barchart.png" alt="a chart"/>
+  <img 
+    <c:out value="src=\"images/barchart_${id}.png\"" escapeXml="false" />
+     alt="a chart"/>
 </div>
 
 </body>

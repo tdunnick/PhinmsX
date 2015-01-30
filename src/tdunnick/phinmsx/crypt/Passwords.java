@@ -359,7 +359,7 @@ public class Passwords
   	{
 	  	for (i = k = 0; i < l; i += 3)
 	  	{
-	  		if (k > kl)
+	  		if (k >= kl)
 	  			k = 0;
 	  		v = Integer.parseInt(seed.substring(i, i + 3)) - key.charAt(k++);
 	  		if (v < 0) v += 255;
@@ -391,7 +391,7 @@ public class Passwords
 		int v, i, k, l = passwd.length(), kl = key.length();
 		for (i = k = 0; i < l; i++)
 		{
-			if (k > kl)
+			if (k >= kl)
 				k = 0;
 			v = passwd.charAt(i) + key.charAt(k++);
 			if (v > 255)
